@@ -1,81 +1,360 @@
+/* ==========================================
+   1. THEME VARIABLES
+   ========================================== */
+.dark-mode {
+  --bg-color: #0f0f0f;
+  --text-color: #f0f0f0;
+  --hero-grad-1: #121225;
+  --hero-grad-2: #0a1128;
+  --school-color: #94a3b8;
+  --card-bg: #161616;
+  --card-border: #262626;
+  --card-hover-border: #475569;
+  --nav-bg: rgba(15, 15, 15, 0.75);
+  --btn-border: #475569;
+  --btn-icon-color: #94a3b8;
+}
+
+.light-mode {
+  --bg-color: #f8fafc;
+  --text-color: #0f172a;
+  --hero-grad-1: #e2e8f0;
+  --hero-grad-2: #cbd5e1;
+  --school-color: #475569;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-hover-border: #94a3b8;
+  --nav-bg: rgba(248, 250, 252, 0.8);
+  --btn-border: #cbd5e1;
+  --btn-icon-color: #64748b;
+}
+
+/* ==========================================
+   2. GLOBAL STYLES
+   ========================================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Segoe UI', sans-serif;
-  background: #0f0f0f;
-  color: #f0f0f0;
+html {
+  scroll-behavior: smooth;
 }
 
-/* HERO */
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ==========================================
+   3. HERO SECTION & LAYOUT CENTER FIX
+   ========================================== */
 .hero {
   height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  background: linear-gradient(135deg, var(--hero-grad-1), var(--hero-grad-2));
+  padding: 0 20px;
+  transition: background 0.3s ease;
 }
 
 .hero h1 {
-  font-size: 4rem;
-  letter-spacing: 2px;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  letter-spacing: 3px;
+  font-weight: 700;
+  min-height: 1.2em;
 }
 
-.hero p {
-  font-size: 1.2rem;
-  color: #888;
-  margin-top: 10px;
+.school {
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  color: var(--school-color);
+  margin-top: 12px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  width: 100%;             /* Spans full width to establish true center */
+  text-align: center;      /* Keeps the link text perfectly in the middle */
 }
 
-/* SECTIONS */
-section {
-  padding: 80px 40px;
+/* ==========================================
+   4. LINK PREVIEW HOVER ENGINE (Dynamic Cursor Tracking)
+   ========================================== */
+.preview-link {
+  text-decoration: none !important; 
+  position: relative;               
+  font-weight: 400;                 
+  display: inline-block;
+  white-space: nowrap;              
+  color: var(--school-color) !important; 
+  transition: color 0.3s ease;
+}
+
+.preview-link .highlight-target,
+.preview-link .ambient-text {
+  color: inherit !important;
+  transition: color 0.3s ease;
+}
+
+.cs-boxed {
+  font-weight: 700 !important;      
+  color: #94a3b8 !important;        
+  background-color: rgba(255, 255, 255, 0.05); 
+  
+  /* UPDATED: Thinned border from 1px to 0.5px */
+  border: 0.5px solid rgba(240, 240, 240, 0.15); 
+  
+  padding: 4px 10px;                
+  border-radius: 6px;               
+  position: relative;
+  z-index: 10;                     
+  margin-right: 6px;               
+}
+
+.light-mode .cs-boxed {
+  color: #475569 !important;        
+  background-color: rgba(0, 0, 0, 0.04); 
+  
+  /* UPDATED: Thinned light-mode border from 1px to 0.5px */
+  border: 0.5px solid rgba(15, 23, 42, 0.1);  
+}
+
+.preview-link:hover .highlight-target {
+  color: #94a3b8 !important;       
+}
+
+.light-mode .preview-link:hover .highlight-target {
+  color: #475569 !important;
+}
+
+/* Shrunk Universal Preview Window Container */
+.hover-preview {
+  position: absolute;         
+  bottom: 130%;               /* Fixed vertical position stays safely above text */
+  left: 50%;                  
+  width: 210px;               
+  height: 120px;              
+  background: var(--card-bg);
+  
+  /* Use a completely flat, crisp border color */
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  
+  pointer-events: auto;       
+  z-index: 2000;              
+  
+  /* FIX 1: Remove the 8px padding. Padding pushes the image inward, leaving 
+     gaps that look like thick borders if the image background doesn't match perfectly. */
+  padding: 0; 
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%); 
+  transform-origin: bottom center;
+  will-change: transform, opacity;
+  
+  transition: opacity 0.15s ease, 
+              visibility 0.15s,
+              left 0.06s cubic-bezier(0.25, 1, 0.5, 1); 
+}
+
+/* Light Mode specific border refinement */
+.light-mode .hover-preview {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+/* Restores card display visibility when tracking states are triggered */
+.hover-preview.active {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Preview Image Engine - Solves the zooming distortion issue */
+.hover-preview img {
+  width: 100%;
+  height: 100%;
+  
+  /* FIX 2: Change 'contain' to 'cover'. This forces the preview image to completely 
+     fill the 210x120px window box, eliminating horizontal or vertical empty gaps. */
+  object-fit: cover; 
+  
+  /* FIX 3: Force center alignment so the core subject of the preview stays framed */
+  object-position: center;
+  
+  background-color: transparent; 
+  display: block;
+}
+
+/* ==========================================
+   5. NAVIGATION MENU BUTTON BAR
+   ========================================== */
+.navbar {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.nav-controls {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Solid Circle Styling with Barely Visible Borders */
+.theme-btn, .nav-toggle {
+  background: var(--card-bg);
+  border: 1px solid rgba(148, 163, 184, 0.15); /* Soft ultra-thin transparent line */
+  color: var(--btn-icon-color);
+  border-radius: 50%;
+  width: 46px; 
+  height: 46px; 
+  display: inline-flex;
+  align-items: center; 
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, transform 0.1s;
+}
+
+.theme-btn:hover, .nav-toggle:hover {
+  background-color: var(--card-border);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: var(--text-color);
+}
+
+.theme-btn:active, .nav-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+}
+
+/* Drop Down Mobile Drawer Container */
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  margin-top: 12px;
+  overflow: hidden;
+  min-width: 160px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              visibility 0.3s;
+}
+
+.nav-menu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.nav-menu a {
+  color: var(--text-color);
+  text-decoration: none;
+  padding: 14px 20px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.nav-menu a:hover {
+  background: var(--card-border);
+}
+
+/* ==========================================
+   6. CONTENT SECTIONS
+   ========================================== */
+section:not(.hero) {
+  padding: 100px 24px;
   max-width: 900px;
   margin: 0 auto;
 }
 
 h2 {
   font-size: 2rem;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 10px;
+  margin-bottom: 30px;
+  border-bottom: 2px solid var(--card-border);
+  padding-bottom: 12px;
+  letter-spacing: 1px;
 }
 
-/* PROJECTS */
+/* CARD GRID SETUP */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
 }
 
 .card {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  padding: 24px;
+  padding: 28px;
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.3s, background-color 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: var(--card-hover-border);
 }
 
 .card h3 {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: 1.3rem;
 }
 
 .card p {
-  color: #aaa;
-  margin-bottom: 16px;
+  color: var(--school-color);
+  margin-bottom: 20px;
+  line-height: 1.6;
 }
 
 .card a {
   color: #6ea8fe;
   text-decoration: none;
-  font-weight: bold;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* LINKS */
+.light-mode .card a {
+  color: #0284c7;
+}
+
+.card a span {
+  transition: transform 0.2s;
+}
+
+.card a:hover span {
+  transform: translateX(4px);
+}
+
+/* LINKS LINK COMPONENT SECTIONS */
 .link-buttons {
   display: flex;
   gap: 16px;
@@ -83,24 +362,95 @@ h2 {
 }
 
 .link-buttons a {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #f0f0f0;
-  padding: 12px 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-color);
+  padding: 14px 28px;
   border-radius: 8px;
   text-decoration: none;
-  font-weight: bold;
-  transition: background 0.2s;
+  font-weight: 600;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
 }
 
 .link-buttons a:hover {
-  background: #2a2a2a;
+  background: var(--card-border);
 }
 
-/* FOOTER */
+.link-buttons a:active {
+  transform: scale(0.98);
+}
+
+/* FOOTER ELEMENTS */
 footer {
   text-align: center;
-  padding: 40px;
-  color: #555;
+  padding: 60px 20px;
+  color: var(--school-color);
   font-size: 0.9rem;
+  border-top: 1px solid var(--card-border);
+}
+
+/* SCROLL REVEAL UTILITY CLASSES */
+.hidden {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==========================================
+   7. DESKTOP MEDIA QUERIES (Closed Correctly)
+   ========================================== */
+@media (min-width: 768px) {
+  .navbar {
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: var(--nav-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+    padding: 15px 40px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-controls {
+    width: auto;
+    order: 2;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+
+  .theme-btn {
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .nav-menu {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    flex-direction: row;
+    background: transparent;
+    border: none;
+    margin-top: 0;
+    box-shadow: none;
+    order: 1;
+  }
+
+  .nav-menu a {
+    padding: 8px 16px;
+    border-radius: 6px;
+  }
+
+  .nav-menu a:hover {
+    background: var(--card-border);
+  }
 }
