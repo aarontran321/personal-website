@@ -46,12 +46,13 @@ body {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   background: var(--bg-color);
   color: var(--text-color);
+  font-size: 1.15rem; 
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ==========================================
-   3. HERO SECTION & LAYOUT CENTER FIX
+   3. HERO SECTION
    ========================================== */
 .hero {
   height: 100vh;
@@ -67,20 +68,24 @@ body {
 }
 
 .hero h1 {
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-size: clamp(3rem, 8vw, 6rem);
   letter-spacing: 3px;
-  font-weight: 700;
+  font-weight: 800;
   min-height: 1.2em;
+  display: inline-block; 
+  white-space: pre; 
+  position: relative;
+  cursor: pointer;
 }
 
 .school {
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  font-size: clamp(1rem, 2.5vw, 1.25rem); 
   color: var(--school-color);
-  margin-top: 12px;
+  margin-top: 16px;
   font-weight: 400;
   letter-spacing: 1.5px;
-  width: 100%;             /* Spans full width to establish true center */
-  text-align: center;      /* Keeps the link text perfectly in the middle */
+  width: 100%;             
+  text-align: center;      
 }
 
 /* ==========================================
@@ -106,10 +111,7 @@ body {
   font-weight: 700 !important;      
   color: #94a3b8 !important;        
   background-color: rgba(255, 255, 255, 0.05); 
-  
-  /* UPDATED: Thinned border from 1px to 0.5px */
   border: 0.5px solid rgba(240, 240, 240, 0.15); 
-  
   padding: 4px 10px;                
   border-radius: 6px;               
   position: relative;
@@ -120,8 +122,6 @@ body {
 .light-mode .cs-boxed {
   color: #475569 !important;        
   background-color: rgba(0, 0, 0, 0.04); 
-  
-  /* UPDATED: Thinned light-mode border from 1px to 0.5px */
   border: 0.5px solid rgba(15, 23, 42, 0.1);  
 }
 
@@ -133,64 +133,46 @@ body {
   color: #475569 !important;
 }
 
-/* Shrunk Universal Preview Window Container */
 .hover-preview {
   position: absolute;         
-  bottom: 130%;               /* Fixed vertical position stays safely above text */
+  bottom: 130%;               
   left: 50%;                  
   width: 210px;               
   height: 120px;              
   background: var(--card-bg);
-  
-  /* Use a completely flat, crisp border color */
   border: 1px solid var(--card-border);
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  
   pointer-events: auto;       
   z-index: 2000;              
-  
-  /* FIX 1: Remove the 8px padding. Padding pushes the image inward, leaving 
-     gaps that look like thick borders if the image background doesn't match perfectly. */
   padding: 0; 
-
   opacity: 0;
   visibility: hidden;
   transform: translateX(-50%); 
   transform-origin: bottom center;
   will-change: transform, opacity;
-  
   transition: opacity 0.15s ease, 
               visibility 0.15s,
               left 0.06s cubic-bezier(0.25, 1, 0.5, 1); 
 }
 
-/* Light Mode specific border refinement */
 .light-mode .hover-preview {
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
-/* Restores card display visibility when tracking states are triggered */
 .hover-preview.active {
   opacity: 1 !important;
   visibility: visible !important;
   transform: translateX(-50%) !important;
 }
 
-/* Preview Image Engine - Solves the zooming distortion issue */
 .hover-preview img {
   width: 100%;
   height: 100%;
-  
-  /* FIX 2: Change 'contain' to 'cover'. This forces the preview image to completely 
-     fill the 210x120px window box, eliminating horizontal or vertical empty gaps. */
   object-fit: cover; 
-  
-  /* FIX 3: Force center alignment so the core subject of the preview stays framed */
   object-position: center;
-  
   background-color: transparent; 
   display: block;
 }
@@ -215,10 +197,9 @@ body {
   width: 100%;
 }
 
-/* Solid Circle Styling with Barely Visible Borders */
 .theme-btn, .nav-toggle {
   background: var(--card-bg);
-  border: 1px solid rgba(148, 163, 184, 0.15); /* Soft ultra-thin transparent line */
+  border: 1px solid rgba(148, 163, 184, 0.15); 
   color: var(--btn-icon-color);
   border-radius: 50%;
   width: 46px; 
@@ -247,7 +228,6 @@ body {
   stroke: currentColor;
 }
 
-/* Drop Down Mobile Drawer Container */
 .nav-menu {
   display: flex;
   flex-direction: column;
@@ -258,7 +238,6 @@ body {
   overflow: hidden;
   min-width: 160px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
@@ -289,20 +268,19 @@ body {
    6. CONTENT SECTIONS
    ========================================== */
 section:not(.hero) {
-  padding: 100px 24px;
-  max-width: 900px;
+  padding: 120px 24px; 
+  max-width: 960px;
   margin: 0 auto;
 }
 
 h2 {
-  font-size: 2rem;
-  margin-bottom: 30px;
+  font-size: 2.6rem; 
+  margin-bottom: 36px;
   border-bottom: 2px solid var(--card-border);
   padding-bottom: 12px;
   letter-spacing: 1px;
 }
 
-/* CARD GRID SETUP */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -323,14 +301,15 @@ h2 {
 }
 
 .card h3 {
-  margin-bottom: 12px;
-  font-size: 1.3rem;
+  margin-bottom: 14px;
+  font-size: 1.5rem; 
 }
 
 .card p {
   color: var(--school-color);
   margin-bottom: 20px;
   line-height: 1.6;
+  font-size: 1.05rem; 
 }
 
 .card a {
@@ -340,6 +319,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-size: 1.05rem;
 }
 
 .light-mode .card a {
@@ -354,7 +334,6 @@ h2 {
   transform: translateX(4px);
 }
 
-/* LINKS LINK COMPONENT SECTIONS */
 .link-buttons {
   display: flex;
   gap: 16px;
@@ -365,10 +344,11 @@ h2 {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   color: var(--text-color);
-  padding: 14px 28px;
+  padding: 16px 32px; 
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
+  font-size: 1.1rem;
   transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
 }
 
@@ -380,16 +360,14 @@ h2 {
   transform: scale(0.98);
 }
 
-/* FOOTER ELEMENTS */
 footer {
   text-align: center;
   padding: 60px 20px;
   color: var(--school-color);
-  font-size: 0.9rem;
+  font-size: 1rem;
   border-top: 1px solid var(--card-border);
 }
 
-/* SCROLL REVEAL UTILITY CLASSES */
 .hidden {
   opacity: 0;
   transform: translateY(30px);
@@ -402,7 +380,7 @@ footer {
 }
 
 /* ==========================================
-   7. DESKTOP MEDIA QUERIES (Closed Correctly)
+   7. DESKTOP MEDIA QUERIES
    ========================================== */
 @media (min-width: 768px) {
   .navbar {
@@ -448,9 +426,138 @@ footer {
   .nav-menu a {
     padding: 8px 16px;
     border-radius: 6px;
+    font-size: 1.05rem;
   }
 
   .nav-menu a:hover {
     background: var(--card-border);
   }
+}
+
+/* ==========================================
+   8. FOOD GALLERY CAROUSEL ARCHITECTURE
+   ========================================== */
+.gallery-section {
+  padding: 140px 24px 80px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.gallery-title {
+  font-size: clamp(2.5rem, 7vw, 4.5rem); 
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.gallery-subtitle {
+  color: var(--school-color);
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+}
+
+.slider-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.slider-container {
+  width: 100%;
+  overflow: hidden; 
+  padding: 10px 0;
+}
+
+.slider-track {
+  display: flex;
+  gap: 24px;
+  will-change: transform;
+}
+
+.slider-track.smooth-transition {
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.slider-track .food-card {
+  flex: 0 0 calc((100% - (24px * 2)) / 3); 
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 900px) {
+  .slider-track .food-card {
+    flex: 0 0 calc((100% - 24px) / 2);
+  }
+}
+
+@media (max-width: 600px) {
+  .slider-track .food-card {
+    flex: 0 0 100%;
+  }
+}
+
+.food-image-wrapper {
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+}
+
+.food-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.food-info {
+  padding: 20px;
+}
+
+.food-info h3 {
+  font-size: 1.35rem; 
+  margin-bottom: 6px;
+}
+
+.food-meta {
+  font-size: 0.95rem;
+  color: var(--school-color);
+  margin-bottom: 12px;
+}
+
+.food-vendor {
+  font-weight: 600;
+  color: #6ea8fe;
+}
+
+.light-mode .food-vendor {
+  color: #0284c7;
+}
+
+.slider-arrow {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-color);
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  z-index: 10;
+  user-select: none;
+}
+
+.slider-arrow:hover {
+  background: var(--card-border);
+  transform: scale(1.05);
+}
+
+.slider-arrow:active {
+  transform: scale(0.95);
 }

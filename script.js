@@ -12,50 +12,57 @@ function closeMenuOnMobile() {
   }
 }
 
-// Typing effect variables
-const textToType = "AARON TRAN";
-const heroHeading = document.querySelector('.hero h1');
-let charIndex = 0;
-let isTypingStarted = false; // 🔒 Safety lock variable
+// ==========================================================
+// HACKER TEXT SCRAMBLE ENGINE (Hover Activated)
+// ==========================================================
+let scrambleInterval = null; // Tracks active intervals globally to prevent stacking
 
-function typeAnimation() {
-  if (charIndex < textToType.length) {
-    heroHeading.textContent += textToType.charAt(charIndex);
-    charIndex++;
-    setTimeout(typeAnimation, 90);
-  }
+function scrambleText() {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
+  const targetElement = document.getElementById("heroName");
+  
+  if (!targetElement) return; 
+
+  // Clear any existing scramble animation currently running
+  clearInterval(scrambleInterval);
+
+  let iteration = 0;
+  const originalText = targetElement.dataset.value;
+
+  scrambleInterval = setInterval(() => {
+    targetElement.innerText = originalText
+      .split("")
+      .map((letter, index) => {
+        if (index < iteration) {
+          return originalText[index];
+        }
+        if (originalText[index] === " ") {
+          return " ";
+        }
+        return letters[Math.floor(Math.random() * letters.length)];
+      })
+      .join("");
+    
+    if (iteration >= originalText.length) { 
+      clearInterval(scrambleInterval);
+    }
+    
+    iteration += 1 / 3; 
+  }, 30); 
 }
 
-// Run typing script safely after DOM loads
+// Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
-  // FIX: Forces the browser window to stay locked at the top upon refresh
   window.scrollTo(0, 0);
 
-  // If the lock is already true, exit immediately to stop duplicate typing loops
-  if (isTypingStarted) return; 
-  
-  isTypingStarted = true; // Set the lock to true so a second event can't pass
-  heroHeading.textContent = ''; // Ensure it's absolutely blank before starting
-  typeAnimation();
-});
+  // 1. Run the scramble instantly on page load
+  scrambleText();
 
-// Scroll Reveal Animations using Intersection Observer
-const revealObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('show');
-      // Unobserve once animation fires so it doesn't recalculate continuously
-      revealObserver.unobserve(entry.target);
-    }
-  });
-}, { 
-  threshold: 0.15,
-  rootMargin: "0px 0px -50px 0px" // Triggers slightly before section enters viewport
-});
-
-document.querySelectorAll('.about, .projects, .links, footer').forEach(section => {
-  section.classList.add('hidden');
-  revealObserver.observe(section);
+  // 2. Add the listener to re-trigger it every time they hover!
+  const heroName = document.getElementById("heroName");
+  if (heroName) {
+    heroName.addEventListener('mouseenter', scrambleText);
+  }
 });
 
 /* ==========================================================
@@ -66,19 +73,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const hoverImg = document.getElementById('universal-hover-img');
   const previewLinks = document.querySelectorAll('.preview-link');
   
-  let closeTimeout; // Stores our safety buffer timer
+  if (!hoverCard || !hoverImg) return;
+  let closeTimeout; 
 
   previewLinks.forEach(link => {
-// 1. Mouse Enter Link: Mount the card and show it
+    // 1. Mouse Enter Link: Mount the card and show it
     link.addEventListener('mouseenter', () => {
-      clearTimeout(closeTimeout); // Cancel any pending close timers
+      clearTimeout(closeTimeout); 
       const imageSrc = link.getAttribute('data-preview');
       if (imageSrc) {
-        // Fixes image paths when appended inside nested layout structures
         hoverImg.setAttribute('src', imageSrc); 
-        
         link.appendChild(hoverCard);
-        hoverCard.getBoundingClientRect(); // Force layout updates
+        hoverCard.getBoundingClientRect(); 
         hoverCard.classList.add('active');
       }
     });
@@ -95,17 +101,17 @@ document.addEventListener('DOMContentLoaded', () => {
     link.addEventListener('mouseleave', () => {
       closeTimeout = setTimeout(() => {
         hoverCard.classList.remove('active');
-      }, 100); // 100ms is the perfect sweet spot for a smooth crossing transition
+      }, 100); 
     });
   });
 
   // 4. Safety Trackers on the Floating Card itself
   hoverCard.addEventListener('mouseenter', () => {
-    clearTimeout(closeTimeout); // Keep it open if mouse is actively inside the window
+    clearTimeout(closeTimeout); 
   });
 
   hoverCard.addEventListener('mouseleave', () => {
-    hoverCard.classList.remove('active'); // Close it immediately when leaving the window bounds
+    hoverCard.classList.remove('active'); 
   });
 });
 
@@ -117,7 +123,6 @@ function toggleTheme() {
   if (body.classList.contains('dark-mode')) {
     body.classList.remove('dark-mode');
     body.classList.add('light-mode');
-    // Swaps the SVG icon inside the button to a Sun shape
     themeBtn.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
         <circle cx="12" cy="12" r="5"></circle>
@@ -134,7 +139,6 @@ function toggleTheme() {
   } else {
     body.classList.remove('light-mode');
     body.classList.add('dark-mode');
-    // Swaps the SVG icon inside the button back to a Moon shape
     themeBtn.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-moon">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -144,37 +148,109 @@ function toggleTheme() {
 }
 
 // ==========================================================
-// UI AUDIO ENGINE 
+// UI AUDIO ENGINE (Smart Tab Navigation Fix)
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Initialize the audio object with your local file
   const clickSound = new Audio('click.wav');
-  
-  // 2. Pre-load the audio into memory so there is zero delay when clicking
   clickSound.preload = 'auto';
+  clickSound.volume = 0.4; 
 
-  // 3. Select every functional, clickable element on your site
-  const interactiveElements = document.querySelectorAll('a, button, .card');
+  const interactiveElements = document.querySelectorAll('a, button, .card, .food-card');
 
-  // 4. Loop through each element and attach the sound logic
   interactiveElements.forEach(element => {
     element.addEventListener('click', (e) => {
-      
-      // SAFETY CHECK: If it's a link pointing to just "#" (empty placeholder), 
-      // you can optional skip it, or let it play. Right now it plays for all active items.
-      
-      // Reset the sound timeline to 0 in case the user rapid-clicks
       clickSound.currentTime = 0;
-      
-      // Lower the volume slightly so it doesn't scare users (0.0 to 1.0)
-      clickSound.volume = 0.4; 
-      
-      // Play the sound
-      clickSound.play().catch(error => {
-        // Modern browsers block audio until the user interacts with the page first.
-        // This catch block prevents the console from throwing errors on page load.
-        console.log("Audio playback held until user interaction.");
-      });
+      clickSound.play().catch(err => console.log("Audio waiting for user interaction"));
+
+      const href = element.getAttribute('href');
+      const target = element.getAttribute('target');
+
+      // Smart Bypass: If opening in a new tab, do not intercept page routing
+      if (target === '_blank') {
+        return; 
+      }
+
+      // Handle internal site layouts with the standard audio transition buffer
+      if (href && !href.startsWith('#') && href !== '#') {
+        e.preventDefault(); 
+        setTimeout(() => {
+          window.location.href = href; 
+        }, 120);
+      }
     });
+  });
+});
+
+// ==========================================================
+// INFINITE FOOD GALLERY SLIDER ENGINE
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const track = document.getElementById('sliderTrack');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  
+  if (!track || !prevBtn || !nextBtn) return; 
+
+  const originalCards = Array.from(track.children);
+  const totalOriginals = originalCards.length;
+  if (totalOriginals === 0) return;
+
+  originalCards.forEach(card => {
+    const cloneLast = card.cloneNode(true);
+    const cloneFirst = card.cloneNode(true);
+    track.appendChild(cloneLast);
+    track.insertBefore(cloneFirst, track.firstChild);
+  });
+
+  let currentIndex = totalOriginals;
+  const gap = 24;
+
+  function getCardWidth() {
+    return track.children[0].getBoundingClientRect().width;
+  }
+
+  function positionSlider(smooth = true) {
+    if (smooth) {
+      track.classList.add('smooth-transition');
+    } else {
+      track.classList.remove('smooth-transition');
+    }
+    
+    const cardWidth = getCardWidth();
+    const moveAmount = currentIndex * (cardWidth + gap);
+    track.style.transform = `translateX(-${moveAmount}px) `;
+  }
+
+  setTimeout(() => {
+    positionSlider(false);
+  }, 50);
+
+  nextBtn.addEventListener('click', () => {
+    currentIndex++;
+    positionSlider(true);
+
+    if (currentIndex >= totalOriginals * 2) {
+      setTimeout(() => {
+        currentIndex = totalOriginals;
+        positionSlider(false);
+      }, 400); 
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    currentIndex--;
+    positionSlider(true);
+
+    if (currentIndex < totalOriginals) {
+      setTimeout(() => {
+        currentIndex = (totalOriginals * 2) - 1;
+        positionSlider(false);
+      }, 400);
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    currentIndex = totalOriginals;
+    positionSlider(false);
   });
 });
