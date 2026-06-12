@@ -8,77 +8,148 @@
 </head>
 <body class="dark-mode">
 
-  <nav class="navbar">
-    <div class="nav-controls">
-      <button class="nav-toggle" aria-label="Toggle Menu" onclick="toggleMenu()">☰</button>
-      
-      <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme" onclick="toggleTheme()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-moon">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+<nav class="navbar">
+  <div class="nav-controls">
+    <button class="nav-toggle" aria-label="Toggle Menu" onclick="toggleMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+
+    <div class="nav-icon-group" id="navMenu">
+      <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer" class="nav-icon-btn" aria-label="LinkedIn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 11v5M8 8v.01M12 16v-5m4 5v-3a2 2 0 0 0-4 0"/>
+        </svg>
+      </a>
+      <a href="https://github.com/aarontran321" target="_blank" rel="noopener noreferrer" class="nav-icon-btn" aria-label="GitHub">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+        </svg>
+      </a>
+      <a href="mailto:aaron99tran@gmail.com" class="nav-icon-btn" aria-label="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
+        </svg>
+      </a>
+      <button id="themeToggle" class="nav-icon-btn" aria-label="Toggle Theme" onclick="toggleTheme()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
     </div>
-    
-    <div class="nav-menu" id="navMenu">
-      <a href="#about" onclick="closeMenuOnMobile()">About</a>
-      <a href="#projects" onclick="closeMenuOnMobile()">Projects</a>
-      <a href="food.html">Food Gallery</a>
-      <a href="#links" onclick="closeMenuOnMobile()">Connect</a>
-    </div>
-  </nav>
+  </div>
+</nav>
 
-  <section class="hero">
-    <!-- Update your HTML inside the <section class="hero"> to this: -->
+<section class="hero">
+  <div class="hero-text">
     <h1 id="heroName" data-value="AARON TRAN" data-text="AARON TRAN">AARON TRAN</h1>
-    
+
     <p class="school">
-      <a href="https://uwaterloo.ca/future-students/programs/computer-science" 
-         target="_blank" 
-         rel="noopener noreferrer" 
-         class="preview-link" 
+      <a href="https://uwaterloo.ca/future-students/programs/computer-science"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="preview-link"
          data-preview="waterloo-cs.jpg">
         <span class="highlight-target cs-boxed">computer science</span>
-      </a> 
+      </a>
       <span class="ambient-text">@ uwaterloo</span>
     </p>
-  </section>
+
+    <p class="hero-tagline">
+      i enjoy <span class="cycle-wrapper"><span class="cycle-text" id="cycleText">building software</span></span>
+    </p>
+
+    <ul class="hero-bullets">
+      <li><span class="bullet-arrow">&gt;</span> seeking <span class="bullet-tag orange">summer 2027</span> internship opportunities</li>
+      <li><span class="bullet-arrow">&gt;</span> more to come soon <span class="bullet-tag blue">:)</span></li>
+    </ul>
+  </div>
+
+  <div class="hero-right">
+    <div class="hero-image">
+      <img src="images/profile.jpg" alt="Aaron Tran" />
+    </div>
+    <div class="hero-langs">
+      <span class="lang-tag">python</span>
+      <span class="lang-tag">javascript</span>
+      <span class="lang-tag">typescript</span>
+      <span class="lang-tag">react</span>
+      <span class="lang-tag">c++</span>
+    </div>
+  </div>
+</section>
 
   <div id="universal-hover-card" class="hover-preview">
     <img id="universal-hover-img" src="" alt="Link Preview">
   </div>
 
-  <section class="about" id="about">
-    <h2>About Me</h2>
-    <p>Hey! I'm Aaron. Write a little something about yourself here — who you are, what you're into, what you're learning.</p>
-  </section>
+ <section class="projects" id="projects">
+  <h2>projects</h2>
+  <div class="project-grid">
 
-  <section class="projects" id="projects">
-    <h2>Projects</h2>
-    <div class="card-grid">
-      <div class="card">
-        <h3>Project One</h3>
-        <p>Short description of what this project does.</p>
-        <a href="#">View Project <span>→</span></a>
+    <div class="project-card">
+      <div class="project-thumbnail">
+        <img src="images/project1.png" alt="Project One" />
       </div>
-      <div class="card">
-        <h3>Project Two</h3>
-        <p>Short description of what this project does.</p>
-        <a href="#">View Project <span>→</span></a>
+      <div class="project-meta">
+        <div class="project-title-row">
+          <h3>project one</h3>
+          <div class="project-links">
+            <a href="#" target="_blank" aria-label="GitHub">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            </a>
+          </div>
+        </div>
+        <p>short description of what this project does and why it matters.</p>
       </div>
     </div>
-  </section>
 
-  <section class="links" id="links">
-    <h2>Connect</h2>
-    <div class="link-buttons">
-      <a href="https://github.com/aarontran321" target="_blank" rel="noopener noreferrer">GitHub</a>
-      <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-      <a href="mailto:aaron99tran@gmail.com">Email Me</a>
+    <div class="project-card">
+      <div class="project-thumbnail">
+        <img src="images/project2.png" alt="Project Two" />
+      </div>
+      <div class="project-meta">
+        <div class="project-title-row">
+          <h3>project two</h3>
+          <div class="project-links">
+            <a href="#" target="_blank" aria-label="GitHub">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            </a>
+            <a href="#" target="_blank" aria-label="Live Demo">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+        </div>
+        <p>short description of what this project does and why it matters.</p>
+      </div>
     </div>
-  </section>
+
+  </div>
+</section>
+
+<section class="links" id="links">
+  <h2>connect</h2>
+  <div class="connect-list">
+    <a href="mailto:aaron99tran@gmail.com" class="connect-item">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+      email
+    </a>
+    <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer" class="connect-item">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 11v5M8 8v.01M12 16v-5m4 5v-3a2 2 0 0 0-4 0"/></svg>
+      linkedin
+    </a>
+    <a href="https://github.com/aarontran321" target="_blank" rel="noopener noreferrer" class="connect-item">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+      github
+    </a>
+  </div>
+</section>
 
   <footer>
-    <p>© 2026 Aaron Tran</p>
+    <p>aaron tran · cs @ uwaterloo · coded from scratch</p>
   </footer>
 
   <script src="script.js"></script>
