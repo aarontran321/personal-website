@@ -268,3 +268,25 @@ document.addEventListener('DOMContentLoaded', () => {
     positionSlider(false);
   });
 });
+
+document.querySelectorAll('.project-card').forEach(card => {
+  const video = card.querySelector('.thumb-video');
+  if (!video) return;
+
+  card.addEventListener('mouseenter', () => {
+    video.currentTime = 0;
+    video.play();
+    video.classList.add('playing');
+  });
+
+  card.addEventListener('mouseleave', () => {
+    video.pause();
+    video.currentTime = 0;
+    video.classList.remove('playing');
+  });
+
+  video.addEventListener('ended', () => {
+    video.classList.remove('playing');
+    video.currentTime = 0;
+  });
+});

@@ -708,3 +708,33 @@ h2 {
   font-size: 0.95rem;
   line-height: 1.6;
 }
+
+.project-thumbnail {
+  position: relative;
+}
+
+.thumb-img,
+.thumb-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-video {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumb-video.playing {
+  opacity: 1;
+}
+
+.project-thumbnail {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
