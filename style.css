@@ -55,12 +55,13 @@ html, body {
    3. HERO SECTION
    ========================================== */
 .hero {
-  height: 100vh;
+  position: relative;
+  min-height: 100vh;
   width: 100%;
   display: flex;
   align-items: center;
   background: var(--bg-color);
-  padding: 0 80px;
+  padding: 140px 80px 120px;
   gap: 60px;
 }
 
@@ -122,9 +123,61 @@ html, body {
   width: 100%;
 }
 
-.school {
-  margin-top: 20px;
-  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.edu-line {
+  font-size: clamp(0.95rem, 1.6vw, 1.05rem);
+}
+
+.edu-muted {
+  color: var(--school-color);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.intern-card {
+  margin-top: 6px;
+  width: fit-content;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.intern-top {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+}
+
+.intern-company {
+  font-size: clamp(0.8rem, 1.4vw, 0.9rem);
+  font-weight: 400;
+  color: var(--text-color);
+}
+
+.intern-year {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: clamp(0.75rem, 1.3vw, 0.85rem);
+  font-weight: 400;
+  color: var(--school-color);
+}
+
+.intern-role {
+  font-size: clamp(0.75rem, 1.3vw, 0.85rem);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--school-color);
 }
 
 .school-link {
@@ -180,32 +233,25 @@ html, body {
   object-fit: cover;
 }
 
-.ambient-text {
-  color: var(--school-color);
-  margin-left: 4px;
-}
-
 .hero-bullets {
   list-style: none;
-  margin-top: 20px;
+  margin-top: 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .hero-bullets li {
-  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  font-size: clamp(0.72rem, 1.2vw, 0.85rem);
   color: var(--school-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  line-height: 1.6;
 }
 
 .bullet-arrow {
   color: var(--school-color);
   font-weight: 600;
   opacity: 0.5;
+  margin-right: 6px;
 }
 
 .bullet-tag {
@@ -359,6 +405,46 @@ h2 {
   border-bottom: 2px solid var(--card-border);
   padding-bottom: 12px;
   letter-spacing: 1px;
+}
+
+/* ==========================================
+   SCROLL INDICATOR (pinned to the bottom of the hero viewport)
+   ========================================== */
+.scroll-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.scroll-text {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: var(--school-color);
+}
+
+.scroll-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--school-color);
+  animation: scroll-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes scroll-bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 1;
+  }
 }
 
 /* ==========================================

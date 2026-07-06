@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AARON TRAN</title>
+  <title>Aaron Tran</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%2360a5fa'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="light-mode">
@@ -55,19 +56,38 @@
   <div class="hero-text">
     <h1 class="hero-title">I'm Aaron, a computer science student who <span class="hero-title-accent">engineers.</span></h1>
 
-    <p class="school">
-      <a href="https://uwaterloo.ca/future-students/programs/computer-science"
-         target="_blank"
-         rel="noopener noreferrer"
-         class="school-link preview-trigger"
-         data-preview="images/waterloo-cs.jpg">computer science</a>
-      <span class="ambient-text">@ university of waterloo</span>
-    </p>
+    <div class="hero-meta">
+      <p class="edu-line">
+        <a href="https://uwaterloo.ca/future-students/programs/computer-science"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="school-link preview-trigger"
+           data-preview="images/waterloo-cs.jpg">computer science</a>
+        <span class="edu-muted">@ university of waterloo</span>
+      </p>
 
-    <ul class="hero-bullets">
-      <li><span class="bullet-arrow">&gt;</span> seeking <span class="bullet-tag orange">spring 2027</span> internship opportunities</li>
-      <li><span class="bullet-arrow">&gt;</span> more to come soon <span class="bullet-tag blue">:)</span></li>
-    </ul>
+      <div class="intern-card">
+        <div class="intern-top">
+          <p class="intern-company">Toronto Catholic District School Board</p>
+          <span class="intern-year">2025</span>
+        </div>
+        <p class="intern-role">Information Technology Intern</p>
+      </div>
+
+      <ul class="hero-bullets">
+        <li><span class="bullet-arrow">&gt;</span> seeking <span class="bullet-tag orange">spring 2027</span> internship opportunities</li>
+        <li><span class="bullet-arrow">&gt;</span> built BAAM, a multi-surface social betting platform with an iMessage extension, driven by Solana smart contracts</li>
+        <li><span class="bullet-arrow">&gt;</span> building Retermina, a local, cross-platform Tauri terminal workspace featuring native Rust PTY shells</li>
+        <li><span class="bullet-arrow">&gt;</span> more to come soon <span class="bullet-tag blue">:)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="scroll-indicator" aria-hidden="true">
+    <span class="scroll-text">scroll to see more</span>
+    <svg class="scroll-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
   </div>
 </section>
 
