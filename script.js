@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
       placeDotAt(link, true);
       setTimeout(() => {
         window.location.href = link.href;
-      }, 220);
+      }, 260);
     });
   });
 
@@ -147,6 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
     element.addEventListener('click', (e) => {
       clickSound.currentTime = 0;
       clickSound.play().catch(() => {/* Audio engine catch */});
+
+      if (element.classList.contains('site-nav-link')) return; // nav dot animation handles its own navigation timing
 
       const href = element.getAttribute('href');
       const target = element.getAttribute('target');
