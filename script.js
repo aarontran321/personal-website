@@ -1,20 +1,47 @@
-// Toggle logic for the mobile menu
-function toggleMenu() {
-  const menu = document.getElementById('navMenu');
-  if (menu) menu.classList.toggle('open');
-}
-
-// Helper to close menu safely when clicking links on mobile without breaking desktop
-function closeMenuOnMobile() {
-  if (window.innerWidth < 768) {
-    const menu = document.getElementById('navMenu');
-    if (menu) menu.classList.remove('open');
-  }
-}
-
 // Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   window.scrollTo(0, 0);
+});
+
+// ==========================================================
+// NAV DOT — slides to the tab you're navigating to before
+// the page actually changes
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const nav = document.getElementById('siteNav');
+  const dot = document.getElementById('navDot');
+  if (!nav || !dot) return;
+
+  const links = Array.from(nav.querySelectorAll('.site-nav-link'));
+
+  function placeDotAt(link, animate) {
+    if (!link) return;
+    if (!animate) {
+      dot.style.transition = 'none';
+    }
+    dot.style.left = `${link.offsetLeft}px`;
+    if (!animate) {
+      void dot.offsetWidth; // force reflow before restoring the transition
+      dot.style.transition = '';
+    }
+  }
+
+  placeDotAt(nav.querySelector('.site-nav-link.active'), false);
+
+  links.forEach((link) => {
+    link.addEventListener('click', (e) => {
+      if (link.classList.contains('active')) return;
+      e.preventDefault();
+      placeDotAt(link, true);
+      setTimeout(() => {
+        window.location.href = link.href;
+      }, 220);
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    placeDotAt(nav.querySelector('.site-nav-link.active'), false);
+  });
 });
 
 // ==========================================================
@@ -105,43 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-
-// Toggle logic for Dark / Light mode themes
-function toggleTheme() {
-  const body = document.body;
-  const themeBtn = document.getElementById('themeToggle');
-  if (!body) return;
-  
-  if (body.classList.contains('dark-mode')) {
-    body.classList.remove('dark-mode');
-    body.classList.add('light-mode');
-    if (themeBtn) {
-      themeBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-      `;
-    }
-  } else {
-    body.classList.remove('light-mode');
-    body.classList.add('dark-mode');
-    if (themeBtn) {
-      themeBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-moon">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      `;
-    }
-  }
-}
 
 // ==========================================================
 // UI AUDIO ENGINE (Smart Tab Navigation Fix)

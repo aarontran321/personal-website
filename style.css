@@ -307,78 +307,49 @@ html, body {
 
 .site-name {
   font-weight: 400;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   letter-spacing: 0.3px;
   color: var(--text-color);
-}
-
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.nav-toggle {
-  background: var(--card-bg);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  color: var(--btn-icon-color);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.nav-toggle svg {
-  width: 17px;
-  height: 17px;
-  display: block;
-}
-
-.nav-toggle:hover {
-  background-color: var(--card-border);
-  color: var(--text-color);
-}
-
-.nav-icon-group {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-}
-
-.nav-icon-btn {
-  position: relative;
-  background: var(--card-bg);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  color: var(--btn-icon-color);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  outline: none;
   text-decoration: none;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
-.nav-icon-btn svg {
-  width: 17px;
-  height: 17px;
-  display: block;
+.site-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
 }
 
-.nav-icon-btn:hover {
-  background-color: var(--card-border);
+.site-nav-link {
+  position: relative;
+  padding-left: 14px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  color: var(--school-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.site-nav-link:hover {
   color: var(--text-color);
-  transform: scale(1.1);
-  box-shadow: 0 0 0 4px var(--card-bg), 0 0 0 5.5px var(--text-color);
+}
+
+.site-nav-link.active {
+  color: var(--text-color);
+}
+
+.nav-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #60a5fa;
+  transform: translateY(-50%);
+  transition: left 0.25s ease;
+  pointer-events: none;
 }
 
 /* ==========================================
@@ -389,30 +360,8 @@ html, body {
     padding: 14px 20px;
   }
 
-  .nav-controls {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
-  }
-
-  .nav-toggle {
-    display: inline-flex;
-  }
-
-  .nav-icon-group {
-    flex-direction: column;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-  }
-
-  .nav-icon-group.open {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
+  .site-nav {
+    gap: 16px;
   }
 }
 /* ==========================================
