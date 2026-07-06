@@ -9,7 +9,9 @@
 </head>
 <body class="light-mode">
 
-<nav class="navbar">
+<header class="site-header">
+  <span class="site-name">Aaron Tran</span>
+
   <div class="nav-controls">
     <button class="nav-toggle" aria-label="Toggle Menu" onclick="toggleMenu()">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -50,7 +52,7 @@
       </button>
     </div>
   </div>
-</nav>
+</header>
 
 <section class="hero">
   <div class="hero-text">
@@ -152,10 +154,11 @@
 <section class="links" id="links">
   <h2>connect</h2>
   <div class="connect-list">
-    <a href="mailto:aaron99tran@gmail.com" class="connect-item">
+    <button type="button" class="connect-item" id="copyEmailBtn" data-email="aaron99tran@gmail.com" aria-label="Copy email address to clipboard">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
-      email
-    </a>
+      <span class="connect-email-text">aaron99tran@gmail.com</span>
+      <span class="copy-tooltip">click to copy to clipboard</span>
+    </button>
     <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer" class="connect-item">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 11v5M8 8v.01M12 16v-5m4 5v-3a2 2 0 0 0-4 0"/></svg>
       linkedin

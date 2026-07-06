@@ -18,6 +18,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
+// COPY EMAIL TO CLIPBOARD
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const copyBtn = document.getElementById('copyEmailBtn');
+  const tooltip = copyBtn ? copyBtn.querySelector('.copy-tooltip') : null;
+  if (!copyBtn || !tooltip) return;
+
+  const defaultText = tooltip.textContent;
+  let resetTimeout;
+
+  copyBtn.addEventListener('click', () => {
+    const email = copyBtn.dataset.email;
+    navigator.clipboard.writeText(email).then(() => {
+      clearTimeout(resetTimeout);
+      tooltip.textContent = 'copied!';
+      resetTimeout = setTimeout(() => {
+        tooltip.textContent = defaultText;
+      }, 1500);
+    });
+  });
+});
+
+// ==========================================================
 // SLIDING IMAGE PREVIEW (trails the cursor with a slight delay)
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
