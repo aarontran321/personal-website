@@ -12,121 +12,76 @@ function closeMenuOnMobile() {
   }
 }
 
-// ==========================================================
-// HACKER TEXT SCRAMBLE ENGINE (Hover Activated)
-// ==========================================================
-let scrambleInterval = null; 
-
-function scrambleText() {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$*";
-  const targetElement = document.getElementById("heroName");
-  
-  if (!targetElement) return; 
-
-  clearInterval(scrambleInterval);
-
-  let iteration = 0;
-  const originalText = targetElement.dataset.value;
-  if (!originalText) return;
-
-  scrambleInterval = setInterval(() => {
-    targetElement.innerText = originalText
-      .split("")
-      .map((letter, index) => {
-        if (index < iteration) {
-          return originalText[index];
-        }
-        if (originalText[index] === " ") {
-          return " ";
-        }
-        return letters[Math.floor(Math.random() * letters.length)];
-      })
-      .join("");
-    
-    if (iteration >= originalText.length) { 
-      clearInterval(scrambleInterval);
-    }
-    
-    iteration += 1 / 3; 
-  }, 30); 
-}
-
 // Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   window.scrollTo(0, 0);
-const phrases = [
-  "building software",
-  "exploring nature",
-  "playing sports",
-  "watching film",
-  "eating good food",
-];
-
-const cycleEl = document.getElementById('cycleText');
-if (cycleEl) {
-  let i = 0;
-  setInterval(() => {
-    cycleEl.style.opacity = '0';
-    setTimeout(() => {
-      i = (i + 1) % phrases.length;
-      cycleEl.textContent = phrases[i];
-      cycleEl.style.opacity = '1';
-    }, 400);
-  }, 2500);
-}
-  const heroName = document.getElementById("heroName");
-  // Only fire scramble engine if we are on the landing page
-  if (heroName) {
-    scrambleText();
-    heroName.addEventListener('mouseenter', scrambleText);
-  }
 });
 
-/* ==========================================================
-   HORIZONTAL TRACKING ENGINE (With Hoverable & Clickable Windows)
-   ========================================================== */
+// ==========================================================
+// SLIDING IMAGE PREVIEW (trails the cursor with a slight delay)
+// ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
   const hoverCard = document.getElementById('universal-hover-card');
   const hoverImg = document.getElementById('universal-hover-img');
-  const previewLinks = document.querySelectorAll('.preview-link');
-  
-  if (!hoverCard || !hoverImg) return;
-  let closeTimeout; 
+  const previewLinks = document.querySelectorAll('.preview-trigger');
+
+  if (!hoverCard || !hoverImg || previewLinks.length === 0) return;
+
+  const followSpeed = 0.12; // lower = more lag behind the cursor
+  let targetX = 0;
+  let currentX = 0;
+  let rafId = null;
+  let closeTimeout;
+
+  function followCursor() {
+    currentX += (targetX - currentX) * followSpeed;
+    hoverCard.style.left = `${currentX}px`;
+    rafId = requestAnimationFrame(followCursor);
+  }
 
   previewLinks.forEach(link => {
     link.addEventListener('mouseenter', () => {
-      clearTimeout(closeTimeout); 
+      clearTimeout(closeTimeout);
       const imageSrc = link.getAttribute('data-preview');
-      if (imageSrc) {
-        hoverImg.setAttribute('src', imageSrc); 
-        link.appendChild(hoverCard);
-        hoverCard.getBoundingClientRect(); 
-        hoverCard.classList.add('active');
-      }
+      if (!imageSrc) return;
+
+      hoverImg.setAttribute('src', imageSrc);
+      link.appendChild(hoverCard);
+
+      const rect = link.getBoundingClientRect();
+      currentX = rect.width / 2;
+      targetX = currentX;
+      hoverCard.style.left = `${currentX}px`;
+
+      hoverCard.classList.add('active');
+      if (rafId === null) rafId = requestAnimationFrame(followCursor);
     });
 
     link.addEventListener('mousemove', (e) => {
       const rect = link.getBoundingClientRect();
-      const relativeX = e.clientX - rect.left;
-      hoverCard.style.left = `${relativeX}px`;
-      hoverCard.style.top = 'auto'; 
+      targetX = e.clientX - rect.left;
     });
 
     link.addEventListener('mouseleave', () => {
       closeTimeout = setTimeout(() => {
         hoverCard.classList.remove('active');
-      }, 100); 
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }, 100);
     });
   });
 
   hoverCard.addEventListener('mouseenter', () => {
-    clearTimeout(closeTimeout); 
+    clearTimeout(closeTimeout);
   });
 
   hoverCard.addEventListener('mouseleave', () => {
-    hoverCard.classList.remove('active'); 
+    hoverCard.classList.remove('active');
+    cancelAnimationFrame(rafId);
+    rafId = null;
   });
 });
+
 
 // Toggle logic for Dark / Light mode themes
 function toggleTheme() {
@@ -289,4 +244,33 @@ document.querySelectorAll('.project-card').forEach(card => {
     video.classList.remove('playing');
     video.currentTime = 0;
   });
+});
+
+// ==========================================================
+// PROJECTS "THINKING" TICKER (cycles single-word status verbs)
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const ticker = document.getElementById('projectsTicker');
+  if (!ticker) return;
+
+  const words = [
+    "building...",
+    "Frolicking...",
+    "prototyping...",
+    "Flibbertigibbeting...",
+    "refactoring...",
+    "exploring...",
+    "optimizing...",
+    "architecting...",
+  ];
+
+  let i = 0;
+  setInterval(() => {
+    ticker.classList.add('is-swapping');
+    setTimeout(() => {
+      i = (i + 1) % words.length;
+      ticker.textContent = words[i];
+      ticker.classList.remove('is-swapping');
+    }, 350);
+  }, 2750);
 });

@@ -6,7 +6,7 @@
   <title>AARON TRAN</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="dark-mode">
+<body class="light-mode">
 
 <nav class="navbar">
   <div class="nav-controls">
@@ -35,8 +35,16 @@
         </svg>
       </a>
       <button id="themeToggle" class="nav-icon-btn" aria-label="Toggle Theme" onclick="toggleTheme()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
       </button>
     </div>
@@ -45,49 +53,36 @@
 
 <section class="hero">
   <div class="hero-text">
-    <h1 id="heroName" data-value="AARON TRAN" data-text="AARON TRAN">AARON TRAN</h1>
+    <h1 class="hero-title">I'm Aaron, a computer science student who <span class="hero-title-accent">engineers.</span></h1>
 
     <p class="school">
       <a href="https://uwaterloo.ca/future-students/programs/computer-science"
          target="_blank"
          rel="noopener noreferrer"
-         class="preview-link"
-         data-preview="images/waterloo-cs.jpg">
-        <span class="highlight-target cs-boxed">computer science</span>
-      </a>
-      <span class="ambient-text">@ uwaterloo</span>
-    </p>
-
-    <p class="hero-tagline">
-      i enjoy <span class="cycle-wrapper"><span class="cycle-text" id="cycleText">building software</span></span>
+         class="school-link preview-trigger"
+         data-preview="images/waterloo-cs.jpg">computer science</a>
+      <span class="ambient-text">@ university of waterloo</span>
     </p>
 
     <ul class="hero-bullets">
-      <li><span class="bullet-arrow">&gt;</span> seeking <span class="bullet-tag orange">summer 2027</span> internship opportunities</li>
+      <li><span class="bullet-arrow">&gt;</span> seeking <span class="bullet-tag orange">spring 2027</span> internship opportunities</li>
       <li><span class="bullet-arrow">&gt;</span> more to come soon <span class="bullet-tag blue">:)</span></li>
     </ul>
   </div>
-
-  <div class="hero-right">
-    <div class="hero-image">
-      <img src="images/profile.JPG" alt="Aaron Tran" />
-    </div>
-    <div class="hero-langs">
-      <span class="lang-tag">python</span>
-      <span class="lang-tag">javascript</span>
-      <span class="lang-tag">typescript</span>
-      <span class="lang-tag">react</span>
-      <span class="lang-tag">c++</span>
-    </div>
-  </div>
 </section>
 
-  <div id="universal-hover-card" class="hover-preview">
-    <img id="universal-hover-img" src="" alt="Link Preview">
-  </div>
+<div id="universal-hover-card" class="hover-preview">
+  <img id="universal-hover-img" src="" alt="Link preview">
+</div>
 
 <section class="projects" id="projects">
   <h2>projects</h2>
+
+  <div class="section-status">
+    <span class="status-blob" aria-hidden="true"></span>
+    <span class="status-ticker" id="projectsTicker">building...</span>
+  </div>
+
   <div class="project-grid">
 
     <div class="project-card">
