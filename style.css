@@ -745,9 +745,9 @@ button.connect-item {
 
 .copy-tooltip {
   position: absolute;
-  left: calc(100% + 14px);
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  top: calc(100% + 8px);
+  z-index: 10;
   font-size: 0.75rem;
   letter-spacing: 0.3px;
   color: var(--school-color);
@@ -767,9 +767,8 @@ button.connect-item {
 
 @media (max-width: 600px) {
   .copy-tooltip {
-    left: 0;
-    top: calc(100% + 8px);
-    transform: none;
+    left: 0 !important;
+    top: calc(100% + 8px) !important;
   }
 }
 

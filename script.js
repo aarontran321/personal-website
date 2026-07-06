@@ -55,6 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const defaultText = tooltip.textContent;
   let resetTimeout;
 
+  copyBtn.addEventListener('mousemove', (e) => {
+    const rect = copyBtn.getBoundingClientRect();
+    tooltip.style.left = `${e.clientX - rect.left + 16}px`;
+    tooltip.style.top = `${e.clientY - rect.top + 18}px`;
+  });
+
   copyBtn.addEventListener('click', () => {
     const email = copyBtn.dataset.email;
     navigator.clipboard.writeText(email).then(() => {
