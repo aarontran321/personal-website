@@ -687,6 +687,11 @@ h2 {
   font-weight: 400;
 }
 
+.projects h2 {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 #links h2 {
   border-bottom: none;
   padding-bottom: 0;
