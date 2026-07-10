@@ -113,31 +113,33 @@
   </div>
 </section>
 
-<section class="links" id="links">
-  <h2>connect</h2>
-  <div class="connect-list">
-    <button type="button" class="connect-item" id="copyEmailBtn" data-email="aaron99tran@gmail.com" aria-label="Copy email address to clipboard">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
-      <span class="connect-email-text">aaron99tran@gmail.com</span>
-      <span class="copy-tooltip">click to copy to clipboard</span>
-    </button>
-    <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer" class="connect-item">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 11v5M8 8v.01M12 16v-5m4 5v-3a2 2 0 0 0-4 0"/></svg>
-      linkedin
-    </a>
-    <a href="https://github.com/aarontran321" target="_blank" rel="noopener noreferrer" class="connect-item">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-      github
-    </a>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-sign-off">
+        <h2 class="footer-heading">Let's get <span class="footer-heading-accent">connected!</span></h2>
+        <p class="footer-subtext">Aaron Tran &copy; 2026 <span class="footer-subtext-divider">|</span> Built with HTML, CSS &amp; JavaScript &middot; hosted on Vercel</p>
+      </div>
+
+      <div class="footer-actions">
+        <nav class="footer-nav" aria-label="Social links">
+          <a href="https://linkedin.com/in/aaron-tran-157405339/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://github.com/aarontran321" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://devpost.com/aaron99tran?ref_content=user-portfolio&ref_feature=portfolio&ref_medium=global-nav" target="_blank" rel="noopener noreferrer">Devpost</a>
+          <a href="/resume.pdf" target="_blank" rel="noopener noreferrer">Resume</a>
+        </nav>
+
+        <button type="button" class="footer-email-btn" id="footerCopyEmailBtn" data-email="astran@uwaterloo.ca" aria-label="Copy email address to clipboard">
+          <svg class="footer-email-icon icon-mail" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+          <svg class="footer-email-icon icon-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <span class="footer-email-text">astran@uwaterloo.ca</span>
+        </button>
+      </div>
+    </div>
   </div>
-</section>
-
-  <footer>
-    <p>aaron tran · built with html, css & javascript
-
-</p>
-  </footer>
+</footer>
 
   <script src="script.js"></script>
+  <script type="module" src="/components/footer-main.jsx"></script>
 </body>
 </html>

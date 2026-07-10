@@ -577,22 +577,6 @@ h2 {
   background: var(--card-border);
 }
 
-footer {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--school-color);
-  border-top: 1px solid var(--card-border);
-}
-
-footer {
-  text-align: center;
-  padding: 20px;
-  color: var(--school-color);
-  border-top: 1px solid var(--card-border);
-  font-size: 0.75rem;
-  letter-spacing: 0.5px;
-}
-
 section:not(.hero) {
   padding: 60px 24px;
   max-width: 960px;
@@ -625,7 +609,7 @@ section.projects {
   column-gap: 28px;
   row-gap: 200px;
   align-items: start;
-  margin-top: 64px; /* reserves the space .section-status used to occupy in-flow */
+  margin-top: 36px; /* reserves the space .section-status used to occupy in-flow */
 }
 
 /* odd cards: wide landscape, anchored to the left edge */
@@ -770,88 +754,200 @@ section.projects {
   }
 }
 
-#links h2 {
+/* ==========================================
+   SITE FOOTER — muted charcoal sign-off band,
+   same on every page regardless of the
+   light/dark theme. Content is pinned to the
+   top-left / top-right corners; a small amount
+   of empty space remains below for future
+   custom elements.
+   ========================================== */
+.site-footer {
+  position: relative;
+  overflow: hidden;
+  background: #19191b;
+  color: #d4d4d8;
+}
+
+.footer-inner {
+  max-width: none;
+  margin: 0 auto;
+  padding: 16px clamp(20px, 3.5vw, 56px) 73px clamp(14px, 1.8vw, 24px);
+  min-height: 222px;
+  position: relative;
+  z-index: 1;
+  /* the 3D character strip sits underneath this layer — clicks must fall
+     through the empty parts of the text layer to reach it, while links and
+     buttons re-enable their own pointer events below */
+  pointer-events: none;
+}
+
+.footer-inner a,
+.footer-inner button {
+  pointer-events: auto;
+}
+
+/* Transparent canvas strip pinned to the footer's bottom edge, behind the
+   text layer. Populated by components/footer-main.jsx; the character only
+   ever moves horizontally along this strip. */
+.footer-scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 150px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.footer-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 40px;
+  /* nudges the sign-off row down a touch without touching
+     .footer-inner's padding, so the reserved empty space
+     below (min-height / padding-bottom) stays untouched */
+  margin-top: 14px;
+}
+
+.footer-sign-off {
+  margin-left: 0.5rem;
+}
+
+.footer-heading {
   border-bottom: none;
   padding-bottom: 0;
-  font-size: 2rem;
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.connect-list {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  align-items: center;
-}
-
-.connect-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  text-decoration: none;
-  color: var(--school-color);
-  font-size: 1rem;
+  margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.1rem, 1.7vw, 1.5rem);
   font-weight: 400;
-  letter-spacing: 1px;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: #e4e4e7;
+  opacity: 0.92;
+}
+
+.footer-heading-accent {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.footer-subtext {
+  margin-top: 8px;
+  font-size: 0.68rem;
+  color: #71717a;
+  letter-spacing: 0.2px;
+}
+
+.footer-subtext-divider {
+  margin: 0 8px;
+  color: #454549;
+}
+
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+
+.footer-nav a {
+  color: #8b8b93;
+  text-decoration: none;
+  font-size: 0.7rem;
+  letter-spacing: 0.3px;
   transition: color 0.2s ease;
 }
 
-button.connect-item {
-  background: none;
-  border: none;
-  padding: 0;
+.footer-nav a:hover {
+  color: #e4e4e7;
+}
+
+.footer-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid #333338;
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: #a1a1aa;
+  font-size: 0.7rem;
+  font-family: inherit;
   cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 
-.connect-email-text {
-  font-size: 0.8rem;
+.footer-email-btn:hover {
+  border-color: #4b4b54;
+  color: #e4e4e7;
 }
 
-.connect-item svg {
-  width: 22px;
-  height: 22px;
-  color: var(--school-color);
-  transition: color 0.2s ease;
+.footer-email-icon {
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
 }
 
-.connect-item:hover {
-  color: #60a5fa;
+.footer-email-btn .icon-check {
+  display: none;
 }
 
-.connect-item:hover svg {
-  color: #60a5fa;
-}
-
-.copy-tooltip {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 8px);
-  z-index: 10;
-  font-size: 0.75rem;
-  letter-spacing: 0.3px;
-  color: var(--school-color);
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  padding: 4px 10px;
+/* Cursor tooltip — follows the mouse while hovering the footer's
+   copy-email button; text swaps to "Copied" on click. */
+.cursor-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translate(-9999px, -9999px);
+  background: #e4e4e7;
+  color: #19191b;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 6px 10px;
   border-radius: 6px;
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  z-index: 3000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  will-change: transform;
 }
 
-#copyEmailBtn:hover .copy-tooltip {
+.cursor-tooltip.active {
   opacity: 1;
+  visibility: visible;
 }
 
-@media (max-width: 600px) {
-  .copy-tooltip {
-    left: 0 !important;
-    top: calc(100% + 8px) !important;
+.cursor-tooltip.copied {
+  background: #4ade80;
+}
+
+@media (max-width: 767px) {
+  .footer-inner {
+    padding: 24px 20px 73px clamp(14px, 4vw, 20px);
+    min-height: 0;
+  }
+
+  .footer-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .footer-actions {
+    align-items: flex-start;
   }
 }
 
