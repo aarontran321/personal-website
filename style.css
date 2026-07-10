@@ -38,6 +38,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   background-color: var(--bg-color) !important;
   color: var(--text-color);
@@ -476,8 +480,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: -24px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .status-blob {
@@ -599,97 +602,161 @@ h2 {
 }
 
 /* ==========================================
-   PROJECT CARDS
+   PROJECTS — EDITORIAL ASYMMETRIC GRID
    ========================================== */
+section.projects {
+  max-width: 1240px;
+  padding: 120px 32px 160px;
+}
+
 .project-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: 56px;
+  row-gap: 150px;
+  align-items: start;
+}
+
+/* odd cards: wide landscape, anchored to the left edge */
+.project-card:nth-child(odd) {
+  grid-column: 1 / span 7;
+}
+
+/* even cards: narrower + taller; tops stay flush with the card beside them */
+.project-card:nth-child(even) {
+  grid-column: 8 / span 5;
 }
 
 .project-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   cursor: pointer;
 }
 
 .project-thumbnail {
+  position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: 12px;
+  aspect-ratio: 16 / 11;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   transition: border-color 0.3s ease;
 }
 
-.project-thumbnail img {
+.project-card:nth-child(even) .project-thumbnail {
+  aspect-ratio: 4 / 5;
+}
+
+.thumb-img,
+.thumb-video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease;
+}
+
+.thumb-img {
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .project-card:hover .project-thumbnail {
   border-color: var(--card-hover-border);
 }
 
-.project-card:hover .project-thumbnail img {
+.project-card:hover .thumb-img {
   transform: scale(1.03);
 }
 
+.thumb-video {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumb-video.playing {
+  opacity: 1;
+}
+
+/* --- text block stacked under the image --- */
 .project-meta {
+  position: relative;
+  margin-top: 26px;
+  padding-right: 88px; /* keeps text clear of the floating links */
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.project-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.project-title-row h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  text-transform: lowercase;
-}
-
+/* github + live links float to the far right, level with the eyebrow/title */
 .project-links {
+  position: absolute;
+  top: 4px;
+  right: 0;
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: 14px;
 }
 
 .project-links a {
-  color: var(--school-color);
+  color: var(--btn-icon-color);
   display: inline-flex;
   align-items: center;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .project-links a svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
+  display: block;
 }
 
 .project-links a:hover {
   color: var(--text-color);
+  transform: translateY(-2px);
 }
 
-.project-meta p {
+.project-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--school-color);
+}
+
+.project-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.7rem, 2.6vw, 2.4rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.2px;
+  color: var(--text-color);
+}
+
+.project-desc {
   font-size: 0.95rem;
+  font-weight: 400;
   color: var(--school-color);
   line-height: 1.6;
-  font-weight: 400;
 }
 
-.projects h2 {
-  border-bottom: none;
-  padding-bottom: 0;
+@media (max-width: 860px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+    row-gap: 80px;
+  }
+
+  .project-card:nth-child(odd),
+  .project-card:nth-child(even) {
+    grid-column: auto;
+  }
+
+  .project-card:nth-child(even) .project-thumbnail {
+    aspect-ratio: 16 / 11;
+  }
+
+  .project-meta {
+    padding-right: 72px;
+  }
 }
 
 #links h2 {
@@ -777,100 +844,3 @@ button.connect-item {
   }
 }
 
-
-
-.project-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.project-card:hover {
-  transform: translateY(-6px);
-  border-color: var(--card-hover-border);
-}
-
-.project-thumbnail {
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
-}
-
-.project-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.project-meta {
-  padding: 20px;
-}
-
-.project-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.project-title-row h3 {
-  font-size: 1.2rem;
-}
-
-.project-links {
-  display: flex;
-  gap: 10px;
-}
-
-.project-links a {
-  color: var(--btn-icon-color);
-  transition: color 0.2s;
-}
-
-.project-links a:hover {
-  color: var(--text-color);
-}
-
-.project-links svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.project-meta p {
-  color: var(--school-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.project-thumbnail {
-  position: relative;
-}
-
-.thumb-img,
-.thumb-video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb-video {
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.thumb-video.playing {
-  opacity: 1;
-}
-
-.project-thumbnail {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-}
