@@ -3,19 +3,21 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 
-import { ChibiYasuoBase, ChibiYasuoRun, ChibiYasuoInteract } from "./models.jsx";
+import { ChibiYasuo } from "./models.jsx";
 
 /**
  * <FooterScene />
  *
  * The 3D layer mounted (by footer-main.jsx) into the existing static
  * .site-footer as a transparent canvas strip along the footer's bottom edge.
- * The chibi character:
- *   - idles (ChibiYasuoBase) at a resting spot when the cursor is far away
- *   - runs (ChibiYasuoRun) horizontally after the cursor's X while the cursor
- *     is inside, or slightly above, the footer
- *   - plays its taunt (ChibiYasuoInteract) when clicked, then goes back to
- *     running/idling based on where the cursor is
+ * A single persistently-mounted <ChibiYasuo /> (see models.jsx) crossfades
+ * between clips on one shared skeleton as `mode` changes:
+ *   - "idle" at a resting spot when the cursor is far away
+ *   - "run" horizontally after the cursor's X while the cursor is inside,
+ *     or slightly above, the footer
+ *   - "interact" (a spell-cast clip) when clicked, facing whichever way it
+ *     was already running, then goes back to running/idling based on where
+ *     the cursor is
  *
  * The wrapper is pointer-events: none so footer links always work; it flips
  * to auto only while the cursor sits directly over the character.
@@ -24,19 +26,23 @@ import { ChibiYasuoBase, ChibiYasuoRun, ChibiYasuoInteract } from "./models.jsx"
 // ---------- tuning ----------
 const PROXIMITY_PX = 140; // cursor may be this many px above the footer and still wake the character
 const HOVER_RADIUS_PX = 60; // horizontal px distance that counts as "hovering the character"
-// Fraction of the canvas half-width; closer than this = "arrived", switch to
-// idle. Relative rather than a fixed world-unit distance so the tolerance
-// scales with the footer's actual width instead of drifting further off
-// (in px) the wider the page gets.
-const ARRIVE_EPSILON_FRACTION = 0.02;
+// World units per second — a fixed, constant march speed toward the target,
+// independent of how far away it is. A 5px gap and a 500px gap close at the
+// identical pace; only the time to arrive differs. (See the useFrame step
+// below — this replaced a damp()-based ease, whose step size scales with
+// remaining distance, so it used to rush when far and crawl when close.)
+const MOVE_SPEED = 4;
+// Screen pixels. Below this distance from the target the character is
+// considered "arrived" and freezes into idle rather than continuing to
+// creep — without a real deadzone, a nearly-stationary cursor's sub-pixel
+// jitter kept nudging the character a hair past/under the arrive threshold
+// every other frame, which read as run/idle spazzing in place. Expressed in
+// screen px (converted to world units per-frame below) so it stays a
+// constant, resize-proof "N pixels of slop" rather than a fraction of the
+// viewport.
+const DEADZONE_PX = 4;
 const EDGE_MARGIN = 0.8; // world units the character keeps away from the canvas edges
-// lower = floatier/slower chase, higher = snappier. damp() is exponential —
-// it never mathematically reaches the target, only approaches it — so this
-// value also sets how long "arrival" takes to register: at the old 0.45 the
-// chase needed 10+ seconds of the cursor sitting still before it got within
-// ARRIVE_EPSILON, so the run -> idle handoff below effectively never fired.
-const MOVE_DAMP = 3.2;
-const TURN_DAMP = 6;
+const TURN_DAMP = 6; // rotation still eases smoothly — only the position march is constant-speed
 const MAX_FRAME_DT = 1 / 30; // clamp useFrame's delta so a background-tab hiccup can't be misread as "arrived" in one giant step
 const FACE_ANGLE = Math.PI / 2; // Y rotation when running right (model faces +Z at rest)
 const REST_X_FRACTION = -0.32; // spawn spot before the cursor has ever entered the footer (fraction of canvas width, 0 = center)
@@ -71,10 +77,22 @@ function CharacterRig({ pointerRef, wrapperRef }) {
   // spot."
   const lastTargetXRef = useRef(restX);
 
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (modeRef.current !== "interact") setMode("interact");
-  };
+  // Any click within the same "near the footer" zone that wakes the
+  // character to chase the cursor (see pointer.near, set in FooterScene's
+  // pointermove listener below) triggers the cast — not just a click
+  // landing directly on the character's own geometry. A plain window
+  // listener (rather than an R3F onClick on the model) is what makes that
+  // possible: it fires regardless of where in the footer the click hit,
+  // including footer links, which keeps working normally alongside it.
+  useEffect(() => {
+    const handleWindowClick = () => {
+      if (modeRef.current !== "interact" && pointerRef.current.near) {
+        setMode("interact");
+      }
+    };
+    window.addEventListener("click", handleWindowClick);
+    return () => window.removeEventListener("click", handleWindowClick);
+  }, [pointerRef]);
 
   // Fired by the taunt clip's mixer when it finishes; the next frame
   // promotes straight back to "run" if the cursor is still nearby.
@@ -87,10 +105,9 @@ function CharacterRig({ pointerRef, wrapperRef }) {
     if (!g || !wrapper) return;
 
     // A backgrounded/throttled tab can hand useFrame one huge delta on the
-    // frame it regains focus. Fed straight into damp(), that single step
-    // finishes almost the entire chase at once, which reads as a teleport —
-    // clamping it keeps every position update gradual, so the character
-    // always glides from wherever it currently is rather than snapping.
+    // frame it regains focus. The position step below is already clamped to
+    // targetX so a giant dt can't overshoot, but this still keeps the turn
+    // damp() (still exponential) and the walking-animation cadence sane.
     const dt = Math.min(delta, MAX_FRAME_DT);
 
     const rect = wrapper.getBoundingClientRect();
@@ -110,18 +127,33 @@ function CharacterRig({ pointerRef, wrapperRef }) {
     if (pointer.near) lastTargetXRef.current = targetX;
 
     const dx = targetX - g.position.x;
-    const moving = Math.abs(dx) > halfW * ARRIVE_EPSILON_FRACTION;
+    const distance = Math.abs(dx);
+    // Deadzone in world units, recomputed every frame off the canvas's
+    // current on-screen width so it tracks resizes instead of drifting.
+    const deadzone = DEADZONE_PX * (viewport.width / rect.width);
+    const moving = distance > deadzone;
 
-    // Horizontal-only easing; frozen in place while the taunt plays. Always
-    // eases from g.position.x's current value — never reset or reassigned
-    // elsewhere — so entering from any target never jumps the start point.
-    if (!interacting) {
-      g.position.x = THREE.MathUtils.damp(g.position.x, targetX, MOVE_DAMP, dt);
+    // Constant-velocity march, frozen in place while the taunt plays OR
+    // while inside the deadzone — below that threshold the character holds
+    // its exact current spot rather than creeping the last few pixels,
+    // which is what caused the run/idle flicker. Always steps from
+    // g.position.x's current value — never reset or reassigned elsewhere —
+    // so entering from any target never jumps the start point. Clamped to
+    // targetX (never overshoots) so a huge step — e.g. a giant dt from a
+    // backgrounded tab — can't send it past the target and back.
+    if (!interacting && moving) {
+      const step = MOVE_SPEED * dt;
+      g.position.x = distance <= step ? targetX : g.position.x + Math.sign(dx) * step;
     }
 
     // Face the travel direction, settle back to camera-facing when stopped.
-    const targetRot = !interacting && moving ? Math.sign(dx) * FACE_ANGLE : 0;
-    g.rotation.y = THREE.MathUtils.damp(g.rotation.y, targetRot, TURN_DAMP, dt);
+    // Frozen entirely while interacting — a click mid-run should perform
+    // the cast facing whichever way the character was already running, not
+    // snap back to face the camera first.
+    if (!interacting) {
+      const targetRot = moving ? Math.sign(dx) * FACE_ANGLE : 0;
+      g.rotation.y = THREE.MathUtils.damp(g.rotation.y, targetRot, TURN_DAMP, dt);
+    }
 
     // Promote/demote run <-> idle (guarded so we don't setState every frame).
     if (!interacting) {
@@ -144,12 +176,13 @@ function CharacterRig({ pointerRef, wrapperRef }) {
 
   return (
     <>
-      <group ref={group} position={[restX, groundY, 0]} onClick={handleClick}>
-        {mode === "idle" && <ChibiYasuoBase />}
-        {mode === "run" && <ChibiYasuoRun />}
-        {mode === "interact" && (
-          <ChibiYasuoInteract onFinished={handleInteractFinished} />
-        )}
+      <group ref={group} position={[restX, groundY, 0]}>
+        {/* One persistently-mounted model whose clip crossfades on the
+            shared skeleton as `mode` changes — never unmounted/remounted,
+            which is what makes the transition an actual blend instead of a
+            cut between three separate objects. Triggered by the window
+            click listener above, not an onClick here — see that comment. */}
+        <ChibiYasuo animation={mode} onFinished={handleInteractFinished} />
       </group>
       <ContactShadows
         position={[0, groundY + 0.01, 0]}
