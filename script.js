@@ -247,30 +247,53 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-document.querySelectorAll('.project-card').forEach(card => {
-  const video = card.querySelector('.thumb-video');
-  if (!video) return;
+// ==========================================================
+// PROJECT VIDEO AUTOPLAY (Intersection Observer)
+// Videos only play while their card is actually on screen —
+// they pause the instant they scroll out of frame so we're not
+// burning CPU/memory on offscreen decode work.
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const videos = Array.from(document.querySelectorAll('.thumb-video'));
+  if (videos.length === 0) return;
 
-  card.addEventListener('mouseenter', () => {
-    video.currentTime = 0;
-    video.play();
-    video.classList.add('playing');
-  });
+  if (!('IntersectionObserver' in window)) {
+    // no IO support: just play everything, no scroll-based gating
+    videos.forEach(video => {
+      video.play().catch(() => {});
+      video.classList.add('playing');
+    });
+    return;
+  }
 
-  card.addEventListener('mouseleave', () => {
-    video.pause();
-    video.currentTime = 0;
-    video.classList.remove('playing');
-  });
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        // lazily attach the source the first time it comes into view
+        if (!video.src && video.dataset.src) {
+          video.src = video.dataset.src;
+        }
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => video.classList.add('playing')).catch(() => {});
+        } else {
+          video.classList.add('playing');
+        }
+      } else {
+        video.pause();
+        video.classList.remove('playing');
+      }
+    });
+  }, { threshold: 0.25 });
 
-  video.addEventListener('ended', () => {
-    video.classList.remove('playing');
-    video.currentTime = 0;
-  });
+  videos.forEach(video => observer.observe(video));
 });
 
 // ==========================================================
-// PROJECTS "THINKING" TICKER (cycles single-word status verbs)
+// PROJECTS "THINKING" TICKER — typewriter effect
+// types each status phrase out, holds, deletes it, then moves
+// on to the next phrase in the cycle
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
   const ticker = document.getElementById('projectsTicker');
@@ -287,13 +310,63 @@ document.addEventListener('DOMContentLoaded', () => {
     "architecting...",
   ];
 
-  let i = 0;
-  setInterval(() => {
-    ticker.classList.add('is-swapping');
-    setTimeout(() => {
-      i = (i + 1) % words.length;
-      ticker.textContent = words[i];
-      ticker.classList.remove('is-swapping');
-    }, 350);
-  }, 2750);
+  const TYPE_SPEED = 55;
+  const HOLD_DURATION = 2400;
+
+  let wordIndex = 0;
+  let charIndex = 0;
+
+  // Lock the ticker to a fixed width covering the longest phrase so
+  // typing/clearing never resizes the box — an unstable width here
+  // forces a reflow of everything below it (the project grid), and
+  // that reflow was jittering the autoplay videos' IntersectionObserver
+  // entries across their visibility threshold, causing them to flicker.
+  function lockTickerWidth() {
+    const probe = document.createElement('span');
+    probe.className = 'status-ticker';
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.width = 'auto';
+    probe.style.minWidth = '0';
+    document.body.appendChild(probe);
+
+    let maxWidth = 0;
+    words.forEach(word => {
+      probe.textContent = word;
+      maxWidth = Math.max(maxWidth, probe.getBoundingClientRect().width);
+    });
+
+    document.body.removeChild(probe);
+    ticker.style.width = `${Math.ceil(maxWidth)}px`;
+  }
+
+  lockTickerWidth();
+
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(lockTickerWidth, 200);
+  });
+
+  function tick() {
+    const currentWord = words[wordIndex];
+
+    if (charIndex <= currentWord.length) {
+      // typing forward
+      ticker.textContent = currentWord.slice(0, charIndex);
+      charIndex++;
+      setTimeout(tick, TYPE_SPEED);
+    } else {
+      // finished typing — hold, then snap straight to empty and
+      // start typing the next phrase (no backspacing animation)
+      setTimeout(() => {
+        ticker.textContent = '';
+        wordIndex = (wordIndex + 1) % words.length;
+        charIndex = 0;
+        tick();
+      }, HOLD_DURATION);
+    }
+  }
+
+  tick();
 });

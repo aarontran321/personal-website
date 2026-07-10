@@ -476,11 +476,16 @@ h2 {
 /* ==========================================
    PROJECTS — "THINKING" STATUS SUBTITLE
    ========================================== */
+/* Positioned as its own layer, detached from the project grid's document
+   flow — any internal reflow while the ticker types/resets can never
+   nudge the grid below (which is what caused the up/down jitter). */
 .section-status {
+  position: absolute;
+  top: 140px;
+  left: clamp(32px, 6vw, 96px);
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
 }
 
 .status-blob {
@@ -506,20 +511,24 @@ h2 {
 }
 
 .status-ticker {
-  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
-  font-weight: 500;
-  color: var(--school-color);
+  font-size: clamp(0.85rem, 1.4vw, 1.02rem);
+  font-weight: 300;
+  color: var(--text-color);
   letter-spacing: 0.3px;
   display: inline-block;
   min-width: 170px;
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  height: 1.3em; /* prevents the box collapsing to 0 when text is momentarily empty between words, which was making it jump vertically */
+  line-height: 1.3em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+  vertical-align: top;
+  animation: status-ticker-pulse 3.2s ease-in-out infinite;
 }
 
-.status-ticker.is-swapping {
-  opacity: 0;
-  transform: translateY(-6px);
+@keyframes status-ticker-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
 .card:hover {
@@ -605,16 +614,18 @@ h2 {
    PROJECTS — EDITORIAL ASYMMETRIC GRID
    ========================================== */
 section.projects {
-  max-width: 1240px;
-  padding: 120px 32px 160px;
+  position: relative;
+  max-width: 1780px;
+  padding: 140px clamp(32px, 6vw, 96px) 180px;
 }
 
 .project-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  column-gap: 56px;
-  row-gap: 150px;
+  column-gap: 28px;
+  row-gap: 200px;
   align-items: start;
+  margin-top: 64px; /* reserves the space .section-status used to occupy in-flow */
 }
 
 /* odd cards: wide landscape, anchored to the left edge */
@@ -645,7 +656,7 @@ section.projects {
 }
 
 .project-card:nth-child(even) .project-thumbnail {
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 4 / 4.4;
 }
 
 .thumb-img,
@@ -681,11 +692,11 @@ section.projects {
 /* --- text block stacked under the image --- */
 .project-meta {
   position: relative;
-  margin-top: 26px;
+  margin-top: 22px;
   padding-right: 88px; /* keeps text clear of the floating links */
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 
 /* github + live links float to the far right, level with the eyebrow/title */
@@ -716,16 +727,16 @@ section.projects {
 }
 
 .project-eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 300;
-  letter-spacing: 2.5px;
+  letter-spacing: 2.2px;
   text-transform: uppercase;
   color: var(--school-color);
 }
 
 .project-title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.7rem, 2.6vw, 2.4rem);
+  font-size: clamp(1.25rem, 1.6vw, 1.6rem);
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: 0.2px;
@@ -733,16 +744,16 @@ section.projects {
 }
 
 .project-desc {
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 400;
   color: var(--school-color);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 @media (max-width: 860px) {
   .project-grid {
     grid-template-columns: 1fr;
-    row-gap: 80px;
+    row-gap: 90px;
   }
 
   .project-card:nth-child(odd),
