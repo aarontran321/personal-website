@@ -594,7 +594,7 @@ section.about-hero {
   gap: 3rem;
   max-width: 72rem;
   margin: 0 auto;
-  padding: 6rem 1.5rem 6rem;
+  padding: 6rem 1.5rem 2.5rem;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -692,7 +692,7 @@ section.about-hero {
 
 @media (max-width: 767px) {
   section.about-hero {
-    padding: 7rem 1.5rem 4rem;
+    padding: 7rem 1.5rem 2rem;
     gap: 2.5rem;
     min-height: 0;
   }
@@ -1075,6 +1075,148 @@ section.projects {
 
   .footer-actions {
     align-items: flex-start;
+  }
+}
+
+/* ==========================================
+   ABOUT PAGE — FLOATING IMAGE GALLERY
+   Rendered by components/InfiniteGallery.jsx into #about-gallery-root.
+   ========================================== */
+section.gallery-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.gallery-intro {
+  flex: 0 0 auto;
+  padding: 2rem clamp(1.5rem, 6vw, 6rem) 2rem;
+  text-align: left;
+}
+
+.gallery-intro-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  color: var(--text-color);
+  letter-spacing: 0.2px;
+  max-width: 40ch;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.gallery-canvas-mount {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background: var(--bg-color);
+}
+
+.gallery-canvas:active {
+  cursor: grabbing;
+}
+
+.gallery-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.gallery-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.gallery-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.gallery-card-frame {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+  /* Re-enable hit-testing just for the image frame (the card itself stays
+     pointer-events: none) so :hover can register here for the zoom effect,
+     without interfering with drag — pointer events still bubble up to the
+     canvas's drag handlers regardless of which element they originate on. */
+  pointer-events: auto;
+}
+
+.gallery-card-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.gallery-card-frame:hover img {
+  transform: scale(1.08);
+}
+
+.gallery-card-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+.gallery-card-title {
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #4a4a4a;
+}
+
+.gallery-indicator {
+  flex: 0 0 auto;
+  padding: 16px 0;
+  text-align: center;
+  color: var(--school-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 1.4px;
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  section.gallery-section {
+    height: 88vh;
+  }
+
+  .gallery-intro {
+    padding: 1.5rem 1.25rem 1rem;
   }
 }
 

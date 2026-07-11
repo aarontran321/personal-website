@@ -50,7 +50,7 @@
         <li>Playing volleyball with friends</li>
         <li>Fishing in new places</li>
         <li>Exploring new coffee shops around the city</li>
-        <li>Tinkering with side projects that have no business existing</li>
+        <li>Tinkering with side projects and exploring new tech stacks</li>
       </ul>
     </div>
 
@@ -71,6 +71,16 @@
     />
   </div>
 
+</section>
+
+<!-- ============================================================
+     GALLERY — floating infinite-canvas photo grid
+     ============================================================ -->
+<section class="gallery-section">
+  <div class="gallery-intro">
+    <p class="gallery-intro-text">A little bit more about me, since pictures speak louder than words anyway&hellip;</p>
+  </div>
+  <div id="about-gallery-root" class="gallery-canvas-mount"></div>
 </section>
 
 <footer class="site-footer">
@@ -100,6 +110,7 @@
 </footer>
 
 <script src="script.js"></script>
+<script type="module" src="/components/gallery-main.jsx"></script>
 <script type="module" src="/components/footer-main.jsx"></script>
 <script>
   // Email link: copy to clipboard instead of opening mailto, with a
