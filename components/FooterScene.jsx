@@ -45,7 +45,7 @@ const EDGE_MARGIN = 0.8; // world units the character keeps away from the canvas
 const TURN_DAMP = 6; // rotation still eases smoothly — only the position march is constant-speed
 const MAX_FRAME_DT = 1 / 30; // clamp useFrame's delta so a background-tab hiccup can't be misread as "arrived" in one giant step
 const FACE_ANGLE = Math.PI / 2; // Y rotation when running right (model faces +Z at rest)
-const REST_X_FRACTION = -0.32; // spawn spot before the cursor has ever entered the footer (fraction of canvas width, 0 = center)
+const REST_X_FRACTION = 0; // spawn spot before the cursor has ever entered the footer (fraction of canvas width, 0 = center)
 const CAM_Y = 1.0;
 const CAM_Z = 6.5;
 // Orthographic instead of perspective: a wide-FOV perspective camera stretches
