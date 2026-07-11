@@ -730,23 +730,30 @@ section.projects {
   padding: 140px clamp(32px, 6vw, 96px) 180px;
 }
 
+/* Two independent columns (rather than a single 12-col grid) so each
+   column's card stack sizes to its own content — a shorter card in the
+   left column doesn't leave a gap waiting for the right column's taller
+   card before the next left-column card can start. */
 .project-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  column-gap: 28px;
-  row-gap: 16px;
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
   margin-top: 36px; /* reserves the space .section-status used to occupy in-flow */
 }
 
-/* odd cards: wide landscape, anchored to the left edge */
-.project-card:nth-child(odd) {
-  grid-column: 1 / span 7;
+.project-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
-/* even cards: narrower + taller; tops stay flush with the card beside them */
-.project-card:nth-child(even) {
-  grid-column: 8 / span 5;
+.project-col-wide {
+  flex: 7;
+}
+
+.project-col-tall {
+  flex: 5;
 }
 
 .project-card {
@@ -766,8 +773,14 @@ section.projects {
   transition: border-color 0.3s ease;
 }
 
-.project-card:nth-child(even) .project-thumbnail {
+.project-card--tall .project-thumbnail {
   aspect-ratio: 4 / 4.4;
+}
+
+/* the Retermina promo video is native 16:9 — widen the crop box to match
+   so object-fit: cover doesn't eat into its sides */
+.project-thumbnail.thumbnail-16-9 {
+  aspect-ratio: 16 / 9;
 }
 
 .thumb-img,
@@ -863,16 +876,15 @@ section.projects {
 
 @media (max-width: 860px) {
   .project-grid {
-    grid-template-columns: 1fr;
-    row-gap: 14px;
+    flex-direction: column;
+    gap: 14px;
   }
 
-  .project-card:nth-child(odd),
-  .project-card:nth-child(even) {
-    grid-column: auto;
+  .project-col {
+    gap: 14px;
   }
 
-  .project-card:nth-child(even) .project-thumbnail {
+  .project-card--tall .project-thumbnail {
     aspect-ratio: 16 / 11;
   }
 

@@ -70,11 +70,11 @@ const PARALLAX_SPRING = { stiffness: 60, damping: 24, mass: 1 };
 const DRAG_SENSITIVITY = 1.0;
 // Cap on release velocity (px per ~16ms frame): raised so a real flick can
 // carry the canvas noticeably further after release.
-const MAX_VELOCITY = 18;
+const MAX_VELOCITY = 14;
 // Per-frame velocity retention for the post-release momentum coast. Raised
-// back toward a "natural", longer glide so letting go produces a real slide
-// rather than a quick stop.
-const FRICTION = 0.9;
+// further so letting go produces a longer, more noticeable slide, while
+// MAX_VELOCITY above still keeps even a hard flick from going too far.
+const FRICTION = 0.93;
 const VELOCITY_STOP = 0.05;
 const TILE_COPIES = [-1, 0, 1];
 

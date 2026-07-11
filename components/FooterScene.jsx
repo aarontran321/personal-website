@@ -13,8 +13,8 @@ import { ChibiYasuo } from "./models.jsx";
  * A single persistently-mounted <ChibiYasuo /> (see models.jsx) crossfades
  * between clips on one shared skeleton as `mode` changes:
  *   - "idle" at a resting spot when the cursor is far away
- *   - "run" horizontally after the cursor's X while the cursor is inside,
- *     or slightly above, the footer
+ *   - "run" horizontally after the cursor's X while the cursor is inside
+ *     the footer
  *   - "interact" (a spell-cast clip) when clicked, facing whichever way it
  *     was already running, then goes back to running/idling based on where
  *     the cursor is
@@ -24,7 +24,6 @@ import { ChibiYasuo } from "./models.jsx";
  */
 
 // ---------- tuning ----------
-const PROXIMITY_PX = 140; // cursor may be this many px above the footer and still wake the character
 const HOVER_RADIUS_PX = 60; // horizontal px distance that counts as "hovering the character"
 // World units per second — a fixed, constant march speed toward the target,
 // independent of how far away it is. A 5px gap and a 500px gap close at the
@@ -201,14 +200,21 @@ export default function FooterScene() {
   const pointerRef = useRef({ x: -9999, y: -9999, near: false });
 
   useEffect(() => {
+    // "Near" is judged against the whole dark .site-footer area, not just
+    // the canvas strip (wrapperRef) — that strip only covers the footer's
+    // bottom 150px (see .footer-scene in style.css), while the footer
+    // itself is taller. The canvas strip's own rect is still what the
+    // frame loop in CharacterRig uses for cursor-to-world-X mapping, since
+    // that's the actual render surface.
+    const footerEl = wrapperRef.current?.closest(".site-footer");
     const handleMove = (e) => {
-      const rect = wrapperRef.current?.getBoundingClientRect();
+      const rect = footerEl?.getBoundingClientRect();
       if (!rect) return;
       const p = pointerRef.current;
       p.x = e.clientX;
       p.y = e.clientY;
       p.near =
-        e.clientY >= rect.top - PROXIMITY_PX &&
+        e.clientY >= rect.top &&
         e.clientY <= rect.bottom &&
         e.clientX >= rect.left &&
         e.clientX <= rect.right;
