@@ -583,6 +583,133 @@ section:not(.hero) {
   margin: 0 auto;
 }
 
+/* ==========================================
+   ABOUT PAGE — HERO
+   ========================================== */
+section.about-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 6rem 1.5rem 6rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.about-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex: 0 1 28rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.about-hero-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 2.25rem;
+  line-height: 1.25;
+  color: var(--text-color);
+}
+
+.about-hero-title-accent {
+  font-style: italic;
+  color: #60a5fa;
+}
+
+.about-hero-paragraph {
+  font-size: 0.8125rem;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--school-color);
+}
+
+.about-hero-link {
+  font-weight: 400;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.about-hero-list {
+  list-style: disc;
+  margin: 0.5rem 0 0 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.about-hero-email-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  vertical-align: baseline;
+}
+
+/* Image sits flat against the page background — no shadow, no border/frame. */
+.about-hero-image-wrap {
+  display: flex;
+  justify-content: center;
+  flex: 0 1 24rem;
+  min-width: 0;
+}
+
+.about-hero-image {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 4 / 4.4;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 0.375rem;
+  box-shadow: none;
+  border: none;
+}
+
+@media (min-width: 640px) {
+  .about-hero-title {
+    font-size: 3rem;
+  }
+
+  .about-hero-paragraph {
+    font-size: 0.875rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .about-hero-image {
+    max-width: 24rem;
+  }
+}
+
+@media (max-width: 767px) {
+  section.about-hero {
+    padding: 7rem 1.5rem 4rem;
+    gap: 2.5rem;
+    min-height: 0;
+  }
+}
+
+/* Social/contact links within the about-hero text */
+.about-hero .social-link {
+  color: var(--text-color);
+  text-decoration-color: currentColor;
+  transition: color 0.2s ease;
+}
+
+.about-hero .social-link:hover,
+.about-hero .social-link:focus-visible {
+  color: #60a5fa;
+}
+
 h2 {
   font-size: 1.4rem;
   margin-bottom: 36px;
