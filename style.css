@@ -607,7 +607,7 @@ section.projects {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   column-gap: 28px;
-  row-gap: 200px;
+  row-gap: 16px;
   align-items: start;
   margin-top: 36px; /* reserves the space .section-status used to occupy in-flow */
 }
@@ -737,7 +737,7 @@ section.projects {
 @media (max-width: 860px) {
   .project-grid {
     grid-template-columns: 1fr;
-    row-gap: 90px;
+    row-gap: 14px;
   }
 
   .project-card:nth-child(odd),
