@@ -22,13 +22,13 @@ const GALLERY_ITEMS = [
   { id: "beachwithfriends", title: "Beach With Friends", aspect: "wide", src: "beachwithfriends.jpg", fx: 0.165, fy: 0.52, group: "a" },
   { id: "citynight", title: "City Night", aspect: "vertical", src: "citynight.jpg", fx: 0.145, fy: 0.863, group: "a" },
   { id: "firsthackathon", title: "First Hackathon", aspect: "wide", src: "firsthackathon.jpg", fx: 0.405, fy: 0.147, group: "b" },
-  { id: "fishing", title: "Fishing", aspect: "vertical", src: "fishing.jpg", fx: 0.355, fy: 0.46, group: "b" },
+  { id: "fishing", title: "Fishing", aspect: "vertical", src: "fishing.jpg", fx: 0.39, fy: 0.46, group: "b" },
   { id: "gamenight", title: "Game Night", aspect: "wide", src: "gamenight.jpg", fx: 0.345, fy: 0.803, group: "b" },
-  { id: "movienight", title: "Movie Night", aspect: "vertical", src: "movienight.jpg", fx: 0.595, fy: 0.207, group: "c" },
+  { id: "movienight", title: "Movie Night", aspect: "vertical", src: "movienight.jpg", fx: 0.615, fy: 0.207, group: "c" },
   { id: "poolparty", title: "Pool Party", aspect: "wide", src: "poolparty.jpg", fx: 0.655, fy: 0.53, group: "c" },
   { id: "pokemonripnight", title: "Pokemon Rip Night", aspect: "vertical", src: "pokemonripnight.jpg", fx: 0.665, fy: 0.853, group: "c" },
   { id: "studentcouncil", title: "Student Council", aspect: "wide", src: "studentcouncil.jpg", fx: 0.895, fy: 0.137, group: "d" },
-  { id: "sleephackathon", title: "Hackathon Sleep Situation", aspect: "vertical", src: "sleephackathon.jpg", fx: 0.835, fy: 0.48, group: "d" },
+  { id: "sleephackathon", title: "Hackathon Sleep Situation", aspect: "vertical", src: "sleephackathon.jpg", fx: 0.87, fy: 0.48, group: "d" },
 ];
 
 // Narrow spread (0.8x-1.35x) so the fastest and slowest groups never drift
@@ -47,10 +47,14 @@ const ASPECT_SIZE = {
 // read as tightly packed rather than spread across a wide-open field. Grown
 // in step with the larger card sizes above so the tighter spacing doesn't
 // tip into overcrowding.
-const MIN_TILE_W = 1550;
-const MIN_TILE_H = 1250;
-const TILE_MULT_W = 1.12;
-const TILE_MULT_H = 1.4;
+// Shrunk ~13% from the previous pass to pull photos closer together — a
+// few of the tightest-margin fx values above (fishing/movienight/
+// sleephackathon) were nudged outward first so this shrink doesn't reopen
+// the overlaps a plain resize would cause between those pairs.
+const MIN_TILE_W = 1350;
+const MIN_TILE_H = 1090;
+const TILE_MULT_W = 0.97;
+const TILE_MULT_H = 1.22;
 
 // Passive cursor parallax baseline (multiplied per-card by GROUP_FACTORS
 // above). Sized so that even the fastest group's max offset stays well
@@ -195,6 +199,12 @@ export default function InfiniteGallery() {
   useEffect(() => stopMomentum, []);
 
   const handlePointerDown = (e) => {
+    // Only the primary button starts a drag — a right-click (button 2) or
+    // middle-click otherwise still grabs pointer capture, and the browser's
+    // context menu can swallow the matching pointerup, leaving `active`
+    // stuck true so the very next mousemove (with no button held) reads as
+    // an ongoing drag and pans the canvas.
+    if (e.button !== 0) return;
     stopMomentum();
     const el = containerRef.current;
     el.setPointerCapture(e.pointerId);
@@ -204,6 +214,18 @@ export default function InfiniteGallery() {
     // uniform pan over the next few frames as the spring settles.
     parallaxTargetX.set(0);
     parallaxTargetY.set(0);
+  };
+
+  // Defensive cleanup: if a context menu (or anything else) ever manages to
+  // swallow the pointerup that would normally end a drag, this guarantees
+  // `active` and pointer capture both get released instead of sticking.
+  const handleContextMenu = () => {
+    const d = drag.current;
+    if (!d.active) return;
+    d.active = false;
+    d.vx = 0;
+    d.vy = 0;
+    stopMomentum();
   };
 
   const handlePointerMove = (e) => {
@@ -275,6 +297,7 @@ export default function InfiniteGallery() {
         }}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       >
         <motion.div className="gallery-world" style={{ x: worldX, y: worldY }}>
