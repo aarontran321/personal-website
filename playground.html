@@ -23,7 +23,7 @@
 </header>
 
 <section class="cursor-trail-hero" id="cursorTrailHero">
-  <p class="cursor-trail-hint">move your cursor around</p>
+  <p class="cursor-trail-hint">move cursor </p>
 
   <div class="trail-controls" id="trailControls">
     <button type="button" class="trail-control-btn" data-control="size">Size: Medium</button>
@@ -43,10 +43,11 @@
      --------------------------------------------------------------- */
   :root {
     --trail-spawn-distance: 90px;   /* min pointer travel before spawning a new image */
-    --trail-hold-ms: 900;           /* ms an image stays fully visible before fading out */
-    --trail-max-images: 6;          /* cap on concurrently-held images */
+    --trail-hold-ms: 900;           /* ms an image stays fully visible before fading out (purely time-based, not count-based) */
     --trail-easing: cubic-bezier(0.03, 0.71, 0.31, 1.01);
     --trail-image-size: 160px;
+    --trail-drift-duration: 600ms;  /* how long the post-spawn drift takes */
+    --trail-drift-easing: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .cursor-trail-layer {
@@ -123,7 +124,7 @@
     width: 0;
     height: 0;
     opacity: 0;
-    transition: opacity 0.35s ease;
+    transition: opacity 0.35s ease, transform var(--trail-drift-duration) var(--trail-drift-easing);
     pointer-events: none;
     will-change: transform;
   }
@@ -167,9 +168,12 @@
     // properties above; kept here too since JS needs plain numbers)
     // ---------------------------------------------------------------
     let SPAWN_DISTANCE = 90;     // px the pointer must travel before a new image spawns
-    const HOLD_DURATION = 900;   // ms an image stays visible before it starts fading out
-    let MAX_CONCURRENT = 6;      // cap on images alive in the DOM at once
+    let HOLD_DURATION = 900;     // ms an image stays visible before it starts fading out —
+                                  // purely time-based: an image is never removed early just
+                                  // because more images have spawned since
     const FADE_FALLBACK_MS = 400; // safety-net removal delay if transitionend never fires
+    const DRIFT_DISTANCE_SCALE = 6; // px of post-spawn drift per (px/ms) of cursor speed at spawn time
+    const DRIFT_MAX_DISTANCE = 26;  // cap on drift distance — kept small so even a fast flick only drifts a little
 
     // Cycled by the on-page control buttons. Index 0 of each array must
     // match the button's default label in the HTML above.
@@ -190,9 +194,9 @@
         { label: 'Density: Dense', value: 50 },
       ],
       trail: [
-        { label: 'Trail: Short', value: 3 },
-        { label: 'Trail: Normal', value: 6 },
-        { label: 'Trail: Long', value: 10 },
+        { label: 'Trail: Short', value: 500 },
+        { label: 'Trail: Normal', value: 900 },
+        { label: 'Trail: Long', value: 1500 },
       ],
       tint: [
         { label: 'Tint: Color', value: 'none' },
@@ -224,15 +228,18 @@
     let lastX = null;
     let lastY = null;
     let imageIndex = 0;
-    const liveImages = [];
 
-    function spawnImage(x, y) {
-      // Enforce the concurrency cap by retiring the oldest image early.
-      if (liveImages.length >= MAX_CONCURRENT) {
-        const oldest = liveImages.shift();
-        retireImage(oldest, true);
-      }
+    // Instantaneous cursor velocity (px/ms), refreshed on every raw
+    // pointermove so the drift direction/speed reflects how fast the
+    // cursor was actually moving at the moment an image is generated —
+    // independent of the (much coarser) spawn-distance gate below.
+    let velX = 0;
+    let velY = 0;
+    let prevMoveX = null;
+    let prevMoveY = null;
+    let prevMoveTime = null;
 
+    function spawnImage(x, y, vx, vy) {
       const outer = document.createElement('div');
       outer.className = 'trail-img-outer';
       outer.style.transform = `translate3d(${x}px, ${y}px, 0)`;
@@ -249,40 +256,36 @@
       inner.appendChild(img);
       outer.appendChild(inner);
       container.appendChild(outer);
-      liveImages.push(outer);
 
-      // One frame later so the transition has a starting state to animate from.
+      // Post-spawn drift: a small nudge in the direction of travel, scaled
+      // by how fast the cursor was moving when this image was generated.
+      // Capped tightly so it stays a subtle drift, never a big slide.
+      const speed = Math.hypot(vx, vy); // px/ms
+      const driftDist = Math.min(speed * DRIFT_DISTANCE_SCALE, DRIFT_MAX_DISTANCE);
+      const driftX = speed > 0.0001 ? (vx / speed) * driftDist : 0;
+      const driftY = speed > 0.0001 ? (vy / speed) * driftDist : 0;
+
+      // One frame later so the transitions have a starting state to animate from.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           outer.classList.add('visible');
+          outer.style.transform = `translate3d(${x + driftX}px, ${y + driftY}px, 0)`;
         });
       });
 
       setTimeout(() => retireImage(outer), HOLD_DURATION);
     }
 
-    function retireImage(outer, immediate) {
-      if (!outer) return;
+    // Purely time-based removal: an image lives for exactly HOLD_DURATION
+    // before it starts fading, regardless of how many other images have
+    // spawned since — there is no concurrency cap to enforce.
+    function retireImage(outer) {
+      if (!outer || outer.dataset.retiring) return;
+      outer.dataset.retiring = 'true';
 
-      // Stays in liveImages (and thus counts against MAX_CONCURRENT)
-      // until it's actually gone from the DOM, so a burst of fade-outs
-      // in flight can't let the node count balloon past the cap.
       const remove = () => {
         if (outer.parentNode) outer.parentNode.removeChild(outer);
-        const idx = liveImages.indexOf(outer);
-        if (idx !== -1) liveImages.splice(idx, 1);
       };
-
-      // Cap eviction must force the node out immediately even if it was
-      // already mid-fade from its own hold-duration timer — otherwise it
-      // lingers in the DOM until that fade finishes and the cap leaks.
-      if (immediate) {
-        remove();
-        return;
-      }
-
-      if (outer.dataset.retiring) return;
-      outer.dataset.retiring = 'true';
 
       outer.classList.remove('visible');
       outer.addEventListener('transitionend', remove, { once: true });
@@ -296,6 +299,39 @@
     window.addEventListener('pointermove', (e) => {
       const x = e.clientX;
       const y = e.clientY;
+      const now = performance.now();
+
+      if (prevMoveX !== null) {
+        const dt = now - prevMoveTime;
+        if (dt > 0) {
+          velX = (x - prevMoveX) / dt;
+          velY = (y - prevMoveY) / dt;
+        }
+      }
+      prevMoveX = x;
+      prevMoveY = y;
+      prevMoveTime = now;
+
+      // No new images spawn once the cursor is over the footer — but any
+      // image already spawned that happens to overlap it is left alone to
+      // finish its normal fade-out, never cut off early. Queried fresh here
+      // (rather than cached at script load) since this <script> runs before
+      // <footer> exists in the DOM.
+      const footer = document.querySelector('.site-footer');
+      if (footer) {
+        const footerRect = footer.getBoundingClientRect();
+        const overFooter =
+          y >= footerRect.top && y <= footerRect.bottom &&
+          x >= footerRect.left && x <= footerRect.right;
+        if (overFooter) {
+          // Keep the spawn-gate baseline current so re-entering the
+          // no-spawn zone doesn't leave stale distance to "cash in" the
+          // moment the cursor steps back out over spawnable ground.
+          lastX = x;
+          lastY = y;
+          return;
+        }
+      }
 
       if (lastX === null) {
         lastX = x;
@@ -308,7 +344,7 @@
 
       lastX = x;
       lastY = y;
-      spawnImage(x, y);
+      spawnImage(x, y, velX, velY);
     });
 
     const root = document.documentElement;
@@ -318,7 +354,7 @@
       if (name === 'size') root.style.setProperty('--trail-image-size', preset.value);
       if (name === 'shape') root.style.setProperty('--trail-shape-radius', preset.value);
       if (name === 'density') SPAWN_DISTANCE = preset.value;
-      if (name === 'trail') MAX_CONCURRENT = preset.value;
+      if (name === 'trail') HOLD_DURATION = preset.value;
       if (name === 'tint') root.style.setProperty('--trail-filter', preset.value);
     }
 
