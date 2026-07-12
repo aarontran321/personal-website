@@ -82,6 +82,14 @@ const FRICTION = 0.93;
 const VELOCITY_STOP = 0.05;
 const TILE_COPIES = [-1, 0, 1];
 
+// Grace period before the zoom class is removed on pointer-leave. Passive
+// parallax keeps nudging cards under the cursor (see BASE_PARALLAX above),
+// so a card's edge can cross the cursor several times a second even while
+// the user is just holding still near it — without this delay each crossing
+// restarts the CSS transition and the zoom never settles (stutters or gets
+// stuck mid-animation). Short enough to still feel immediate.
+const HOVER_LEAVE_DELAY = 100;
+
 // Wraps a value into a range centered on 0, e.g. wrap(x, 1000) stays within
 // [-500, 500) — shifting by a whole tile is invisible in a repeating grid,
 // so this is applied only to the rendered (post-spring) position, never to
@@ -101,12 +109,38 @@ function GalleryCard({ item, tileW, tileH, parallaxX, parallaxY }) {
   const px = useTransform(parallaxX, (v) => v * factor);
   const py = useTransform(parallaxY, (v) => v * factor);
 
+  // Zoom is toggled directly on the DOM node (not via React state) so a
+  // burst of enter/leave events near a card's edge never forces a
+  // re-render — only the debounce timer itself is state.
+  const frameRef = useRef(null);
+  const leaveTimer = useRef(null);
+
+  const handlePointerEnter = () => {
+    clearTimeout(leaveTimer.current);
+    frameRef.current?.classList.add("is-zoomed");
+  };
+
+  const handlePointerLeave = () => {
+    clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => {
+      frameRef.current?.classList.remove("is-zoomed");
+    }, HOVER_LEAVE_DELAY);
+  };
+
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+
   return (
     <motion.figure
       className="gallery-card"
       style={{ left: item.fx * tileW, top: item.fy * tileH, width: size.w, x: px, y: py }}
     >
-      <div className="gallery-card-frame" style={{ height: size.h }}>
+      <div
+        ref={frameRef}
+        className="gallery-card-frame"
+        style={{ height: size.h }}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+      >
         <img
           src={`/images/gallery/${item.src}`}
           alt={item.title}

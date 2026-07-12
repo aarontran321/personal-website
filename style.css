@@ -1190,7 +1190,7 @@ section.gallery-section {
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   /* Re-enable hit-testing just for the image frame (the card itself stays
-     pointer-events: none) so :hover can register here for the zoom effect,
+     pointer-events: none) so hover can register here for the zoom effect,
      without interfering with drag — pointer events still bubble up to the
      canvas's drag handlers regardless of which element they originate on. */
   pointer-events: auto;
@@ -1203,10 +1203,21 @@ section.gallery-section {
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  /* Kept on its own compositing layer at all times (not just while zoomed)
+     — promoting/demoting the layer on every hover toggle is what caused the
+     zoom to stutter or get stuck when the cursor crossed a card's edge
+     rapidly (e.g. flicking on/off a few times fast, which also happens
+     naturally since passive parallax nudges cards under the cursor). */
+  will-change: transform;
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.gallery-card-frame:hover img {
+/* Driven by a debounced JS hover state (see InfiniteGallery.jsx) rather
+   than plain :hover — cards drift slightly under the cursor from passive
+   parallax, so raw :hover can fire on/off many times a second right at a
+   card's edge; the debounce absorbs that flicker instead of retriggering
+   the transition each time. */
+.gallery-card-frame.is-zoomed img {
   transform: scale(1.08);
 }
 
