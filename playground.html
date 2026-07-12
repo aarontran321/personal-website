@@ -9,6 +9,8 @@
 </head>
 <body class="light-mode">
 
+<div class="cursor-trail-layer" id="cursorTrailLayer"></div>
+
 <header class="site-header">
   <a href="index.html" class="site-name">Aaron Tran</a>
 
@@ -22,19 +24,42 @@
 
 <section class="cursor-trail-hero" id="cursorTrailHero">
   <p class="cursor-trail-hint">move your cursor around</p>
+
+  <div class="trail-controls" id="trailControls">
+    <button type="button" class="trail-control-btn" data-control="size">Size: Medium</button>
+    <button type="button" class="trail-control-btn" data-control="shape">Shape: Rounded</button>
+    <button type="button" class="trail-control-btn" data-control="density">Density: Normal</button>
+    <button type="button" class="trail-control-btn" data-control="trail">Trail: Normal</button>
+    <button type="button" class="trail-control-btn" data-control="tint">Tint: Color</button>
+  </div>
 </section>
 
 <style>
   /* ---------------------------------------------------------------
      Cursor image trail — tuning values
+     (declared on :root so they reach the images in #cursorTrailLayer,
+     which lives outside the hero section so the trail can span the
+     whole page instead of just the hero box)
      --------------------------------------------------------------- */
-  .cursor-trail-hero {
+  :root {
     --trail-spawn-distance: 90px;   /* min pointer travel before spawning a new image */
-    --trail-hold-ms: 500;           /* ms an image stays fully visible before fading out */
+    --trail-hold-ms: 900;           /* ms an image stays fully visible before fading out */
     --trail-max-images: 6;          /* cap on concurrently-held images */
     --trail-easing: cubic-bezier(0.03, 0.71, 0.31, 1.01);
     --trail-image-size: 160px;
+  }
 
+  .cursor-trail-layer {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 500;
+  }
+
+  .cursor-trail-hero {
     position: relative;
     min-height: 100vh;
     width: 100%;
@@ -42,19 +67,53 @@
     align-items: center;
     justify-content: center;
     background: var(--bg-color);
-    overflow: hidden;
     cursor: crosshair;
   }
 
   .cursor-trail-hint {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-style: italic;
+    font-weight: 400;
     font-size: clamp(1.1rem, 2vw, 1.5rem);
+    letter-spacing: 0.3px;
     color: var(--text-color);
     opacity: 0.35;
     pointer-events: none;
     user-select: none;
     margin: 0;
+  }
+
+  .trail-controls {
+    position: absolute;
+    left: 50%;
+    bottom: 56px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: min(90vw, 640px);
+    z-index: 501;
+  }
+
+  .trail-control-btn {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.01em;
+    color: var(--text-color);
+    background: var(--card-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.15s ease;
+  }
+
+  .trail-control-btn:hover {
+    border-color: var(--card-hover-border);
+    transform: scale(1.12);
+  }
+
+  .trail-control-btn:active {
+    transform: scale(1.0);
   }
 
   .trail-img-outer {
@@ -80,8 +139,8 @@
     width: var(--trail-image-size);
     height: var(--trail-image-size);
     transform: translate(-50%, -50%) scale(0.4);
-    transition: transform 0.5s var(--trail-easing);
-    border-radius: 10px;
+    transition: transform 0.5s var(--trail-easing), border-radius 0.3s ease;
+    border-radius: var(--trail-shape-radius, 10px);
     overflow: hidden;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
     pointer-events: none;
@@ -97,6 +156,7 @@
     object-fit: cover;
     display: block;
     pointer-events: none;
+    filter: var(--trail-filter, none);
   }
 </style>
 
@@ -106,10 +166,41 @@
     // Cursor image trail — tuning values (mirror the CSS custom
     // properties above; kept here too since JS needs plain numbers)
     // ---------------------------------------------------------------
-    const SPAWN_DISTANCE = 90;   // px the pointer must travel before a new image spawns
-    const HOLD_DURATION = 500;   // ms an image stays visible before it starts fading out
-    const MAX_CONCURRENT = 6;    // cap on images alive in the DOM at once
+    let SPAWN_DISTANCE = 90;     // px the pointer must travel before a new image spawns
+    const HOLD_DURATION = 900;   // ms an image stays visible before it starts fading out
+    let MAX_CONCURRENT = 6;      // cap on images alive in the DOM at once
     const FADE_FALLBACK_MS = 400; // safety-net removal delay if transitionend never fires
+
+    // Cycled by the on-page control buttons. Index 0 of each array must
+    // match the button's default label in the HTML above.
+    const CONTROL_PRESETS = {
+      size: [
+        { label: 'Size: Small', value: '110px' },
+        { label: 'Size: Medium', value: '160px' },
+        { label: 'Size: Large', value: '220px' },
+      ],
+      shape: [
+        { label: 'Shape: Rounded', value: '10px' },
+        { label: 'Shape: Circle', value: '50%' },
+        { label: 'Shape: Square', value: '0px' },
+      ],
+      density: [
+        { label: 'Density: Sparse', value: 140 },
+        { label: 'Density: Normal', value: 90 },
+        { label: 'Density: Dense', value: 50 },
+      ],
+      trail: [
+        { label: 'Trail: Short', value: 3 },
+        { label: 'Trail: Normal', value: 6 },
+        { label: 'Trail: Long', value: 10 },
+      ],
+      tint: [
+        { label: 'Tint: Color', value: 'none' },
+        { label: 'Tint: Grayscale', value: 'grayscale(1)' },
+        { label: 'Tint: Sepia', value: 'sepia(0.85) saturate(1.3)' },
+      ],
+    };
+    const controlState = { size: 1, shape: 0, density: 1, trail: 1, tint: 0 };
 
     const IMAGES = [
       '/images/gallery/firsthackathon.jpg',
@@ -125,7 +216,9 @@
       '/images/gallery/pokemonripnight.jpg',
     ];
 
-    const container = document.getElementById('cursorTrailHero');
+    // Images are spawned into a fixed, full-viewport layer (not the hero
+    // section) so the trail follows the cursor across the entire page.
+    const container = document.getElementById('cursorTrailLayer');
     if (!container) return;
 
     let lastX = null;
@@ -196,10 +289,13 @@
       setTimeout(remove, FADE_FALLBACK_MS);
     }
 
-    container.addEventListener('pointermove', (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+    // Listen on the whole window (not just the hero section) so the
+    // trail follows the cursor over the header, footer, and everything
+    // in between. The layer is `position: fixed`, so clientX/clientY
+    // map onto it directly with no scroll-offset math needed.
+    window.addEventListener('pointermove', (e) => {
+      const x = e.clientX;
+      const y = e.clientY;
 
       if (lastX === null) {
         lastX = x;
@@ -213,6 +309,27 @@
       lastX = x;
       lastY = y;
       spawnImage(x, y);
+    });
+
+    const root = document.documentElement;
+
+    function applyControl(name) {
+      const preset = CONTROL_PRESETS[name][controlState[name]];
+      if (name === 'size') root.style.setProperty('--trail-image-size', preset.value);
+      if (name === 'shape') root.style.setProperty('--trail-shape-radius', preset.value);
+      if (name === 'density') SPAWN_DISTANCE = preset.value;
+      if (name === 'trail') MAX_CONCURRENT = preset.value;
+      if (name === 'tint') root.style.setProperty('--trail-filter', preset.value);
+    }
+
+    document.querySelectorAll('.trail-control-btn').forEach((btn) => {
+      const name = btn.dataset.control;
+      applyControl(name); // sync CSS vars / mutable tuning values with the default label
+      btn.addEventListener('click', () => {
+        controlState[name] = (controlState[name] + 1) % CONTROL_PRESETS[name].length;
+        btn.textContent = CONTROL_PRESETS[name][controlState[name]].label;
+        applyControl(name);
+      });
     });
   })();
 </script>
