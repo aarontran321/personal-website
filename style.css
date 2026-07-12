@@ -880,8 +880,10 @@ section.projects {
     gap: 14px;
   }
 
+  /* unwrap the columns so cards become direct flex items and can be
+     reordered individually below (Retermina, BAAM, Personal Website) */
   .project-col {
-    gap: 14px;
+    display: contents;
   }
 
   .project-card--tall .project-thumbnail {
@@ -890,6 +892,18 @@ section.projects {
 
   .project-meta {
     padding-right: 72px;
+  }
+
+  .project-card-retermina {
+    order: 1;
+  }
+
+  .project-card-baam {
+    order: 2;
+  }
+
+  .project-card-personal {
+    order: 3;
   }
 }
 
