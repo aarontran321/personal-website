@@ -1112,7 +1112,7 @@ section.gallery-section {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 130vh;
+  height: 115vh;
   max-width: none;
   padding: 0;
   margin: 0;
@@ -1237,7 +1237,7 @@ section.gallery-section {
 
 @media (max-width: 767px) {
   section.gallery-section {
-    height: 115vh;
+    height: 105vh;
   }
 
   .gallery-intro {
