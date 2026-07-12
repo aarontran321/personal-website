@@ -396,3 +396,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   tick();
 });
+
+// ==========================================================
+// RETERMINA PROJECT CARD — CLICK-THROUGH TO LIVE SITE
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const reterminaCard = document.querySelector('.project-card-retermina');
+  if (!reterminaCard) return;
+
+  reterminaCard.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return; // GitHub / Live Demo links keep their own destinations
+    window.open('https://retermina.com', '_blank', 'noopener');
+  });
+});
