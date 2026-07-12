@@ -20,11 +20,202 @@
   </nav>
 </header>
 
-<section class="hero">
-  <div class="hero-text">
-    <h1 class="hero-title"><span class="hero-title-accent-neutral">playground coming soon :)</span></h1>
-  </div>
+<section class="cursor-trail-hero" id="cursorTrailHero">
+  <p class="cursor-trail-hint">move your cursor around</p>
 </section>
+
+<style>
+  /* ---------------------------------------------------------------
+     Cursor image trail — tuning values
+     --------------------------------------------------------------- */
+  .cursor-trail-hero {
+    --trail-spawn-distance: 90px;   /* min pointer travel before spawning a new image */
+    --trail-hold-ms: 500;           /* ms an image stays fully visible before fading out */
+    --trail-max-images: 6;          /* cap on concurrently-held images */
+    --trail-easing: cubic-bezier(0.03, 0.71, 0.31, 1.01);
+    --trail-image-size: 160px;
+
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-color);
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  .cursor-trail-hint {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    color: var(--text-color);
+    opacity: 0.35;
+    pointer-events: none;
+    user-select: none;
+    margin: 0;
+  }
+
+  .trail-img-outer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .trail-img-outer.visible {
+    opacity: 1;
+  }
+
+  .trail-img-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--trail-image-size);
+    height: var(--trail-image-size);
+    transform: translate(-50%, -50%) scale(0.4);
+    transition: transform 0.5s var(--trail-easing);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+
+  .trail-img-outer.visible .trail-img-inner {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .trail-img-inner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  (function () {
+    // ---------------------------------------------------------------
+    // Cursor image trail — tuning values (mirror the CSS custom
+    // properties above; kept here too since JS needs plain numbers)
+    // ---------------------------------------------------------------
+    const SPAWN_DISTANCE = 90;   // px the pointer must travel before a new image spawns
+    const HOLD_DURATION = 500;   // ms an image stays visible before it starts fading out
+    const MAX_CONCURRENT = 6;    // cap on images alive in the DOM at once
+    const FADE_FALLBACK_MS = 400; // safety-net removal delay if transitionend never fires
+
+    const IMAGES = [
+      '/images/gallery/firsthackathon.jpg',
+      '/images/gallery/citynight.jpg',
+      '/images/gallery/movienight.jpg',
+      '/images/gallery/fishing.jpg',
+      '/images/gallery/gamenight.jpg',
+      '/images/gallery/canoe.jpg',
+      '/images/gallery/sleephackathon.jpg',
+      '/images/gallery/poolparty.jpg',
+      '/images/gallery/beachwithfriends.jpg',
+      '/images/gallery/studentcouncil.jpg',
+      '/images/gallery/pokemonripnight.jpg',
+    ];
+
+    const container = document.getElementById('cursorTrailHero');
+    if (!container) return;
+
+    let lastX = null;
+    let lastY = null;
+    let imageIndex = 0;
+    const liveImages = [];
+
+    function spawnImage(x, y) {
+      // Enforce the concurrency cap by retiring the oldest image early.
+      if (liveImages.length >= MAX_CONCURRENT) {
+        const oldest = liveImages.shift();
+        retireImage(oldest, true);
+      }
+
+      const outer = document.createElement('div');
+      outer.className = 'trail-img-outer';
+      outer.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+      const inner = document.createElement('div');
+      inner.className = 'trail-img-inner';
+
+      const img = document.createElement('img');
+      img.src = IMAGES[imageIndex % IMAGES.length];
+      imageIndex++;
+      img.alt = '';
+      img.draggable = false;
+
+      inner.appendChild(img);
+      outer.appendChild(inner);
+      container.appendChild(outer);
+      liveImages.push(outer);
+
+      // One frame later so the transition has a starting state to animate from.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          outer.classList.add('visible');
+        });
+      });
+
+      setTimeout(() => retireImage(outer), HOLD_DURATION);
+    }
+
+    function retireImage(outer, immediate) {
+      if (!outer) return;
+
+      // Stays in liveImages (and thus counts against MAX_CONCURRENT)
+      // until it's actually gone from the DOM, so a burst of fade-outs
+      // in flight can't let the node count balloon past the cap.
+      const remove = () => {
+        if (outer.parentNode) outer.parentNode.removeChild(outer);
+        const idx = liveImages.indexOf(outer);
+        if (idx !== -1) liveImages.splice(idx, 1);
+      };
+
+      // Cap eviction must force the node out immediately even if it was
+      // already mid-fade from its own hold-duration timer — otherwise it
+      // lingers in the DOM until that fade finishes and the cap leaks.
+      if (immediate) {
+        remove();
+        return;
+      }
+
+      if (outer.dataset.retiring) return;
+      outer.dataset.retiring = 'true';
+
+      outer.classList.remove('visible');
+      outer.addEventListener('transitionend', remove, { once: true });
+      setTimeout(remove, FADE_FALLBACK_MS);
+    }
+
+    container.addEventListener('pointermove', (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (lastX === null) {
+        lastX = x;
+        lastY = y;
+        return;
+      }
+
+      const dist = Math.hypot(x - lastX, y - lastY);
+      if (dist < SPAWN_DISTANCE) return;
+
+      lastX = x;
+      lastY = y;
+      spawnImage(x, y);
+    });
+  })();
+</script>
 
 <footer class="site-footer">
   <div class="footer-inner">
