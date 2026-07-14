@@ -37,11 +37,21 @@
   <p class="cursor-trail-hint">move cursor </p>
 
   <div class="trail-controls" id="trailControls">
-    <button type="button" class="trail-control-btn" data-control="size">Size: Medium</button>
-    <button type="button" class="trail-control-btn" data-control="shape">Shape: Rounded</button>
-    <button type="button" class="trail-control-btn" data-control="density">Density: Normal</button>
-    <button type="button" class="trail-control-btn" data-control="trail">Trail: Normal</button>
-    <button type="button" class="trail-control-btn" data-control="tint">Tint: Color</button>
+    <button type="button" class="trail-control-btn" data-control="size">
+      <span class="trail-btn-label">Size</span><span class="trail-btn-value">Medium</span>
+    </button>
+    <button type="button" class="trail-control-btn" data-control="shape">
+      <span class="trail-btn-label">Shape</span><span class="trail-btn-value">Rounded</span>
+    </button>
+    <button type="button" class="trail-control-btn" data-control="density">
+      <span class="trail-btn-label">Density</span><span class="trail-btn-value">Normal</span>
+    </button>
+    <button type="button" class="trail-control-btn" data-control="trail">
+      <span class="trail-btn-label">Trail</span><span class="trail-btn-value">Normal</span>
+    </button>
+    <button type="button" class="trail-control-btn" data-control="tint">
+      <span class="trail-btn-label">Tint</span><span class="trail-btn-value">Color</span>
+    </button>
   </div>
 </section>
 
@@ -107,25 +117,55 @@
   }
 
   .trail-control-btn {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     letter-spacing: 0.01em;
     color: var(--text-color);
     background: var(--card-bg);
     border: 1px solid var(--btn-border);
-    border-radius: 4px;
-    padding: 8px 16px;
+    border-radius: 999px;
+    padding: 10px 18px;
     cursor: pointer;
-    transition: border-color 0.2s ease, transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .trail-btn-label {
+    opacity: 0.5;
+    font-weight: 400;
+  }
+
+  .trail-btn-label::after {
+    content: ':';
+  }
+
+  .trail-btn-value {
+    font-weight: 600;
+    color: var(--text-color);
+    transition: color 0.2s ease;
   }
 
   .trail-control-btn:hover {
-    border-color: var(--card-hover-border);
-    transform: scale(1.12);
+    border-color: #60a5fa;
+    box-shadow: 0 8px 20px rgba(96, 165, 250, 0.16);
+    transform: translateY(-3px);
+  }
+
+  .trail-control-btn:hover .trail-btn-value {
+    color: #60a5fa;
   }
 
   .trail-control-btn:active {
-    transform: scale(1.0);
+    transform: translateY(-1px) scale(0.97);
+    box-shadow: 0 3px 10px rgba(96, 165, 250, 0.14);
+  }
+
+  .trail-control-btn:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
   }
 
   .trail-img-outer {
@@ -190,29 +230,29 @@
     // match the button's default label in the HTML above.
     const CONTROL_PRESETS = {
       size: [
-        { label: 'Size: Small', value: '110px' },
-        { label: 'Size: Medium', value: '160px' },
-        { label: 'Size: Large', value: '220px' },
+        { text: 'Small', value: '110px' },
+        { text: 'Medium', value: '160px' },
+        { text: 'Large', value: '220px' },
       ],
       shape: [
-        { label: 'Shape: Rounded', value: '10px' },
-        { label: 'Shape: Circle', value: '50%' },
-        { label: 'Shape: Square', value: '0px' },
+        { text: 'Rounded', value: '10px' },
+        { text: 'Circle', value: '50%' },
+        { text: 'Square', value: '0px' },
       ],
       density: [
-        { label: 'Density: Sparse', value: 140 },
-        { label: 'Density: Normal', value: 90 },
-        { label: 'Density: Dense', value: 50 },
+        { text: 'Sparse', value: 140 },
+        { text: 'Normal', value: 90 },
+        { text: 'Dense', value: 50 },
       ],
       trail: [
-        { label: 'Trail: Short', value: 500 },
-        { label: 'Trail: Normal', value: 900 },
-        { label: 'Trail: Long', value: 1500 },
+        { text: 'Short', value: 500 },
+        { text: 'Normal', value: 900 },
+        { text: 'Long', value: 1500 },
       ],
       tint: [
-        { label: 'Tint: Color', value: 'none' },
-        { label: 'Tint: Grayscale', value: 'grayscale(1)' },
-        { label: 'Tint: Sepia', value: 'sepia(0.85) saturate(1.3)' },
+        { text: 'Color', value: 'none' },
+        { text: 'Grayscale', value: 'grayscale(1)' },
+        { text: 'Sepia', value: 'sepia(0.85) saturate(1.3)' },
       ],
     };
     const controlState = { size: 1, shape: 0, density: 1, trail: 1, tint: 0 };
@@ -371,10 +411,11 @@
 
     document.querySelectorAll('.trail-control-btn').forEach((btn) => {
       const name = btn.dataset.control;
+      const valueEl = btn.querySelector('.trail-btn-value');
       applyControl(name); // sync CSS vars / mutable tuning values with the default label
       btn.addEventListener('click', () => {
         controlState[name] = (controlState[name] + 1) % CONTROL_PRESETS[name].length;
-        btn.textContent = CONTROL_PRESETS[name][controlState[name]].label;
+        valueEl.textContent = CONTROL_PRESETS[name][controlState[name]].text;
         applyControl(name);
       });
     });
