@@ -738,7 +738,7 @@ section.projects {
 
 .bento-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 24px;
   margin-top: 36px; /* reserves the space .section-status used to occupy in-flow */
 }
@@ -754,10 +754,10 @@ section.projects {
   transform: translateY(-5px);
 }
 
-.bento-card--retermina { grid-column: span 3; grid-row: span 2; }
-.bento-card--baam      { grid-column: span 2; grid-row: span 2; }
-.bento-card--personal  { grid-column: span 2; grid-row: span 1; }
-.bento-card--faceray   { grid-column: span 3; grid-row: span 1; }
+.bento-card--retermina { grid-column: span 8; grid-row: span 2; }
+.bento-card--baam      { grid-column: span 4; grid-row: span 2; }
+.bento-card--personal  { grid-column: span 5; grid-row: span 1; }
+.bento-card--faceray   { grid-column: span 7; grid-row: span 1; }
 
 .project-card-retermina {
   cursor: pointer;
@@ -777,6 +777,19 @@ section.projects {
 
 .bento-card:hover .bento-visual {
   border-color: var(--card-hover-border);
+}
+
+/* row 2 (Personal Website + FaceRay) sits at a wider column span than
+   before -- give it an explicit aspect-ratio + taller floor so it reads
+   with the same scale as row 1 instead of looking squashed */
+.bento-card--personal .bento-visual {
+  aspect-ratio: 16 / 10;
+  min-height: 300px;
+}
+
+.bento-card--faceray .bento-visual {
+  aspect-ratio: 16 / 9;
+  min-height: 300px;
 }
 
 .thumb-img,
