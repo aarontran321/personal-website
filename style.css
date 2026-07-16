@@ -779,17 +779,29 @@ section.projects {
   border-color: var(--card-hover-border);
 }
 
+/* row 1 hero cards -- generous, matched heights so the terminal video and
+   the phone bezel both have room to render without the bottom getting cut */
+.bento-card--retermina .bento-visual {
+  aspect-ratio: 16 / 10;
+  min-height: 420px;
+}
+
+.bento-card--baam .bento-visual {
+  aspect-ratio: 4 / 5;
+  min-height: 420px;
+}
+
 /* row 2 (Personal Website + FaceRay) sits at a wider column span than
    before -- give it an explicit aspect-ratio + taller floor so it reads
-   with the same scale as row 1 instead of looking squashed */
+   at the same scale as row 1 instead of looking squashed */
 .bento-card--personal .bento-visual {
   aspect-ratio: 16 / 10;
-  min-height: 300px;
+  min-height: 340px;
 }
 
 .bento-card--faceray .bento-visual {
   aspect-ratio: 16 / 9;
-  min-height: 300px;
+  min-height: 340px;
 }
 
 .thumb-img,
@@ -799,6 +811,7 @@ section.projects {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .thumb-img {
