@@ -722,7 +722,13 @@ h2 {
 }
 
 /* ==========================================
-   PROJECTS — EDITORIAL ASYMMETRIC GRID
+   PROJECTS — ASYMMETRIC BENTO GRID
+   Five tracks wide on desktop: Retermina (3) +
+   BAAM (2) form a tall hero row, then Personal
+   Website (2) + FaceRay (3) form a shorter row
+   directly beneath -- the column split flips
+   between the two rows so nothing lines up into
+   a rigid table, which is the point.
    ========================================== */
 section.projects {
   position: relative;
@@ -730,57 +736,47 @@ section.projects {
   padding: 140px clamp(32px, 6vw, 96px) 180px;
 }
 
-/* Two independent columns (rather than a single 12-col grid) so each
-   column's card stack sizes to its own content — a shorter card in the
-   left column doesn't leave a gap waiting for the right column's taller
-   card before the next left-column card can start. */
-.project-grid {
-  display: flex;
-  align-items: flex-start;
-  gap: 28px;
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
   margin-top: 36px; /* reserves the space .section-status used to occupy in-flow */
 }
 
-.project-col {
+.bento-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   min-width: 0;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.project-col-wide {
-  flex: 7;
+.bento-card:hover {
+  transform: translateY(-5px);
 }
 
-.project-col-tall {
-  flex: 5;
-}
+.bento-card--retermina { grid-column: span 3; grid-row: span 2; }
+.bento-card--baam      { grid-column: span 2; grid-row: span 2; }
+.bento-card--personal  { grid-column: span 2; grid-row: span 1; }
+.bento-card--faceray   { grid-column: span 3; grid-row: span 1; }
 
-.project-card {
-  display: flex;
-  flex-direction: column;
+.project-card-retermina {
   cursor: pointer;
 }
 
-.project-thumbnail {
+/* --- shared visual container: every card type paints inside this box --- */
+.bento-visual {
   position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 11;
-  border-radius: 14px;
+  flex: 1;
+  min-height: 190px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   transition: border-color 0.3s ease;
 }
 
-.project-card--tall .project-thumbnail {
-  aspect-ratio: 4 / 4.4;
-}
-
-/* the Retermina promo video is native 16:9 — widen the crop box to match
-   so object-fit: cover doesn't eat into its sides */
-.project-thumbnail.thumbnail-16-9 {
-  aspect-ratio: 16 / 9;
+.bento-card:hover .bento-visual {
+  border-color: var(--card-hover-border);
 }
 
 .thumb-img,
@@ -793,15 +789,11 @@ section.projects {
 }
 
 .thumb-img {
-  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.project-card:hover .project-thumbnail {
-  border-color: var(--card-hover-border);
-}
-
-.project-card:hover .thumb-img {
-  transform: scale(1.03);
+.bento-card:hover .thumb-img {
+  transform: scale(1.04);
 }
 
 .thumb-video {
@@ -813,10 +805,175 @@ section.projects {
   opacity: 1;
 }
 
-/* --- text block stacked under the image --- */
+/* --- Type B: Retermina, desktop workspace mockup with chrome bar + sidebar --- */
+.bento-visual--mockup {
+  display: flex;
+  flex-direction: column;
+}
+
+.mockup-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--card-bg) 82%, var(--text-color) 18%);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.chrome-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.chrome-dot--red { background: #f56565; }
+.chrome-dot--yellow { background: #f6ad55; }
+.chrome-dot--green { background: #68d391; }
+
+.chrome-tab {
+  margin-left: 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.3px;
+  color: var(--school-color);
+}
+
+.mockup-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.mockup-sidebar {
+  flex-shrink: 0;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  background: var(--card-bg);
+  border-right: 1px solid var(--card-border);
+}
+
+.mockup-sidebar span {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  background: var(--card-border);
+}
+
+.mockup-pane {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- Type C: BAAM, phone frame floating on a soft pastel field --- */
+.bento-visual--phone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px 0;
+  background: linear-gradient(160deg, #ffe1ea 0%, #dfe7ff 100%);
+}
+
+.phone-frame {
+  position: relative;
+  width: 56%;
+  max-width: 190px;
+  aspect-ratio: 9 / 19.5;
+  background: #0c0c0e;
+  border-radius: 30px;
+  padding: 7px;
+  box-shadow: 0 24px 44px -16px rgba(15, 23, 42, 0.4);
+}
+
+.phone-island {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36%;
+  height: 15px;
+  border-radius: 12px;
+  background: #0c0c0e;
+  z-index: 2;
+}
+
+.phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 23px;
+  overflow: hidden;
+  background: #000;
+}
+
+/* --- Type E: Personal Website, flat brand block with a centered monogram --- */
+.bento-visual--brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d2b53;
+}
+
+.bento-visual--brand::before {
+  content: '';
+  position: absolute;
+  width: 118px;
+  height: 118px;
+  border: 1px solid rgba(248, 250, 252, 0.16);
+  border-radius: 50%;
+}
+
+.brand-mark {
+  position: relative;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #f8fafc;
+  opacity: 0.94;
+}
+
+/* --- Type A: FaceRay, vibrant gradient with a centered glyph + status badge --- */
+.bento-visual--gradient {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 55%, #ec4899 100%);
+}
+
+.gradient-glyph {
+  width: 64px;
+  height: 64px;
+  opacity: 0.95;
+}
+
+.status-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 5px 11px;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* --- text block stacked under the visual --- */
 .project-meta {
   position: relative;
-  margin-top: 22px;
+  margin-top: 20px;
   padding-right: 88px; /* keeps text clear of the floating links */
   display: flex;
   flex-direction: column;
@@ -874,36 +1031,52 @@ section.projects {
   line-height: 1.55;
 }
 
-@media (max-width: 860px) {
-  .project-grid {
-    flex-direction: column;
-    gap: 14px;
+@media (max-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  /* unwrap the columns so cards become direct flex items and can be
-     reordered individually below (Retermina, BAAM, Personal Website) */
-  .project-col {
-    display: contents;
+  .bento-card--retermina,
+  .bento-card--faceray {
+    grid-column: span 2;
+    grid-row: span 1;
   }
 
-  .project-card--tall .project-thumbnail {
-    aspect-ratio: 16 / 11;
+  .bento-card--baam,
+  .bento-card--personal {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  .bento-visual {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .bento-card--retermina,
+  .bento-card--baam,
+  .bento-card--personal,
+  .bento-card--faceray {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  .bento-visual {
+    min-height: 220px;
+  }
+
+  .phone-frame {
+    max-width: 220px;
   }
 
   .project-meta {
     padding-right: 72px;
-  }
-
-  .project-card-retermina {
-    order: 1;
-  }
-
-  .project-card-baam {
-    order: 2;
-  }
-
-  .project-card-personal {
-    order: 3;
   }
 }
 
