@@ -896,19 +896,28 @@ section.projects {
   overflow: hidden;
 }
 
-/* --- Type C: BAAM, phone frame floating on a soft pastel field --- */
+/* --- Type C: BAAM, phone frame floating on a soft pastel field ---
+   .bento-visual--phone is a flex item of .bento-card (column flex) whose
+   own height comes from the grid's row-track stretch. That chain makes
+   its height "definite" for flex-layout purposes but NOT for a plain
+   `height: %` on a descendant -- percentage heights are the classic
+   flex/grid footgun and silently collapse instead of erroring. Pin the
+   phone with `top`/`bottom` insets on an absolutely-positioned element
+   instead: those resolve against the actual rendered box regardless of
+   how that box's own height was computed, so this reliably reads as an
+   exact 96%-of-container fill with `width: auto` deriving from the
+   aspect-ratio. */
 .bento-visual--phone {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 26px 0;
   background: linear-gradient(160deg, #ffe1ea 0%, #dfe7ff 100%);
 }
 
 .phone-frame {
-  position: relative;
-  width: 56%;
-  max-width: 190px;
+  position: absolute;
+  top: 2%;
+  bottom: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
   aspect-ratio: 9 / 19.5;
   background: #0c0c0e;
   border-radius: 30px;
