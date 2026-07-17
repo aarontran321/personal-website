@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hanging Curtain Tapestry — Preview</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #F5F5F7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #heroTapestry {
+      --curtain-char-color: #2C2C2E;
+      width: min(90vw, 760px);
+      height: min(85vh, 820px);
+    }
+
+    #heroTapestry canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none; /* keep drag gestures from scrolling the page on mobile */
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #1a1a1f; }
+      #heroTapestry { --curtain-char-color: #D8B26E; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="heroTapestry" aria-hidden="true">
+    <canvas id="curtainCanvas"></canvas>
+  </div>
+
+  <script src="/curtain.js"></script>
+</body>
+</html>
