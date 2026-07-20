@@ -756,8 +756,8 @@ section.projects {
 
 .bento-card--retermina { grid-column: span 8; grid-row: span 2; }
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
-.bento-card--plotboard { grid-column: span 12; grid-row: span 1; }
-.bento-card--faceray   { grid-column: span 12; grid-row: span 1; }
+.bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
+.bento-card--faceray   { grid-column: span 6; grid-row: span 1; }
 
 .project-card-retermina {
   cursor: pointer;
@@ -797,8 +797,8 @@ section.projects {
 }
 
 .bento-card--plotboard .bento-visual {
-  aspect-ratio: 21 / 9;
-  min-height: 300px;
+  aspect-ratio: 16 / 9;
+  min-height: 340px;
 }
 
 .thumb-img,
