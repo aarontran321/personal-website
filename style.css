@@ -978,7 +978,7 @@ section.projects {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 55%, #ec4899 100%);
+  background: #a855f7;
 }
 
 .gradient-glyph {
