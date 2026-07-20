@@ -756,9 +756,8 @@ section.projects {
 
 .bento-card--retermina { grid-column: span 8; grid-row: span 2; }
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
-.bento-card--personal  { grid-column: span 5; grid-row: span 1; }
-.bento-card--faceray   { grid-column: span 7; grid-row: span 1; }
 .bento-card--plotboard { grid-column: span 12; grid-row: span 1; }
+.bento-card--faceray   { grid-column: span 12; grid-row: span 1; }
 
 .project-card-retermina {
   cursor: pointer;
@@ -790,14 +789,6 @@ section.projects {
 .bento-card--baam .bento-visual {
   aspect-ratio: 4 / 5;
   min-height: 420px;
-}
-
-/* row 2 (Personal Website + FaceRay) sits at a wider column span than
-   before -- give it an explicit aspect-ratio + taller floor so it reads
-   at the same scale as row 1 instead of looking squashed */
-.bento-card--personal .bento-visual {
-  aspect-ratio: 16 / 10;
-  min-height: 340px;
 }
 
 .bento-card--faceray .bento-visual {
@@ -952,33 +943,6 @@ section.projects {
   background: #000;
 }
 
-/* --- Type E: Personal Website, flat brand block with a centered monogram --- */
-.bento-visual--brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1d2b53;
-}
-
-.bento-visual--brand::before {
-  content: '';
-  position: absolute;
-  width: 118px;
-  height: 118px;
-  border: 1px solid rgba(248, 250, 252, 0.16);
-  border-radius: 50%;
-}
-
-.brand-mark {
-  position: relative;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(2.4rem, 5vw, 3.6rem);
-  font-weight: 500;
-  letter-spacing: 2px;
-  color: #f8fafc;
-  opacity: 0.94;
-}
-
 /* --- Type A: FaceRay, vibrant gradient with a centered glyph + status badge --- */
 .bento-visual--gradient {
   display: flex;
@@ -1092,8 +1056,7 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--baam,
-  .bento-card--personal {
+  .bento-card--baam {
     grid-column: span 1;
     grid-row: span 1;
   }
@@ -1111,7 +1074,6 @@ section.projects {
 
   .bento-card--retermina,
   .bento-card--baam,
-  .bento-card--personal,
   .bento-card--faceray,
   .bento-card--plotboard {
     grid-column: span 1;
