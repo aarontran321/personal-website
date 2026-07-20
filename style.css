@@ -758,6 +758,7 @@ section.projects {
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
 .bento-card--personal  { grid-column: span 5; grid-row: span 1; }
 .bento-card--faceray   { grid-column: span 7; grid-row: span 1; }
+.bento-card--plotboard { grid-column: span 12; grid-row: span 1; }
 
 .project-card-retermina {
   cursor: pointer;
@@ -802,6 +803,11 @@ section.projects {
 .bento-card--faceray .bento-visual {
   aspect-ratio: 16 / 9;
   min-height: 340px;
+}
+
+.bento-card--plotboard .bento-visual {
+  aspect-ratio: 21 / 9;
+  min-height: 300px;
 }
 
 .thumb-img,
@@ -981,6 +987,14 @@ section.projects {
   background: #a855f7;
 }
 
+/* --- Plotboard: solid field-green with a route-diagram glyph --- */
+.bento-visual--field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #15803d;
+}
+
 .gradient-glyph {
   width: 64px;
   height: 64px;
@@ -1072,7 +1086,8 @@ section.projects {
   }
 
   .bento-card--retermina,
-  .bento-card--faceray {
+  .bento-card--faceray,
+  .bento-card--plotboard {
     grid-column: span 2;
     grid-row: span 1;
   }
@@ -1097,7 +1112,8 @@ section.projects {
   .bento-card--retermina,
   .bento-card--baam,
   .bento-card--personal,
-  .bento-card--faceray {
+  .bento-card--faceray,
+  .bento-card--plotboard {
     grid-column: span 1;
     grid-row: span 1;
   }
