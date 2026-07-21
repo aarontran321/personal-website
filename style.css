@@ -700,14 +700,36 @@ section.about-hero {
 
 /* Social/contact links within the about-hero text */
 .about-hero .social-link {
+  position: relative;
   color: var(--text-color);
   text-decoration-color: currentColor;
-  transition: color 0.2s ease;
+  z-index: 0;
+}
+
+.about-hero .social-link::before {
+  content: '';
+  position: absolute;
+  left: -0.3em;
+  right: -0.3em;
+  top: -0.1em;
+  bottom: -0.1em;
+  background: #60a5fa;
+  border-radius: 0.2em;
+  opacity: 0;
+  transform: scaleY(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: -1;
 }
 
 .about-hero .social-link:hover,
 .about-hero .social-link:focus-visible {
-  color: #60a5fa;
+  color: #19191b;
+}
+
+.about-hero .social-link:hover::before,
+.about-hero .social-link:focus-visible::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 h2 {
