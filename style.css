@@ -650,7 +650,7 @@ section.about-hero {
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
-  font-weight: inherit;
+  font-weight: 400;
   vertical-align: baseline;
 }
 
@@ -713,17 +713,12 @@ section.about-hero {
   right: -0.3em;
   top: -0.1em;
   bottom: -0.1em;
-  background: #60a5fa;
+  background: rgba(96, 165, 250, 0.35);
   border-radius: 0.2em;
   opacity: 0;
   transform: scaleY(0.7);
   transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: -1;
-}
-
-.about-hero .social-link:hover,
-.about-hero .social-link:focus-visible {
-  color: #19191b;
 }
 
 .about-hero .social-link:hover::before,
