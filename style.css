@@ -1111,8 +1111,8 @@ section.projects {
 .footer-inner {
   max-width: none;
   margin: 0 auto;
-  padding: 16px clamp(20px, 3.5vw, 56px) 73px clamp(14px, 1.8vw, 24px);
-  min-height: 222px;
+  padding: 14.4px clamp(18px, 3.15vw, 50.4px) 65.7px clamp(12.6px, 1.62vw, 21.6px);
+  min-height: 199.8px;
   position: relative;
   z-index: 1;
   /* the 3D character strip sits underneath this layer — clicks must fall
@@ -1134,7 +1134,7 @@ section.projects {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 150px;
+  height: 135px;
   z-index: 0;
   pointer-events: none;
 }
@@ -1144,15 +1144,15 @@ section.projects {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 40px;
+  gap: 36px;
   /* nudges the sign-off row down a touch without touching
      .footer-inner's padding, so the reserved empty space
      below (min-height / padding-bottom) stays untouched */
-  margin-top: 14px;
+  margin-top: 12.6px;
 }
 
 .footer-sign-off {
-  margin-left: 0.5rem;
+  margin-left: 0.45rem;
 }
 
 .footer-heading {
@@ -1162,7 +1162,7 @@ section.projects {
   text-transform: none;
   letter-spacing: 0.2px;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.1rem, 1.7vw, 1.5rem);
+  font-size: clamp(0.99rem, 1.53vw, 1.35rem);
   font-weight: 400;
   color: #e4e4e7;
   opacity: 0.92;
@@ -1174,14 +1174,14 @@ section.projects {
 }
 
 .footer-subtext {
-  margin-top: 8px;
-  font-size: 0.68rem;
+  margin-top: 7.2px;
+  font-size: 0.612rem;
   color: #71717a;
   letter-spacing: 0.2px;
 }
 
 .footer-subtext-divider {
-  margin: 0 8px;
+  margin: 0 7.2px;
   color: #454549;
 }
 
@@ -1189,19 +1189,19 @@ section.projects {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  gap: 21.6px;
 }
 
 .footer-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 22px;
+  gap: 19.8px;
 }
 
 .footer-nav a {
   color: #8b8b93;
   text-decoration: none;
-  font-size: 0.7rem;
+  font-size: 0.63rem;
   letter-spacing: 0.3px;
   transition: color 0.2s ease;
 }
@@ -1213,13 +1213,13 @@ section.projects {
 .footer-email-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7.2px;
   background: transparent;
   border: 1px solid #333338;
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: 5.4px;
+  padding: 5.4px 10.8px;
   color: #a1a1aa;
-  font-size: 0.7rem;
+  font-size: 0.63rem;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
@@ -1231,8 +1231,8 @@ section.projects {
 }
 
 .footer-email-icon {
-  width: 12px;
-  height: 12px;
+  width: 10.8px;
+  height: 10.8px;
   flex-shrink: 0;
 }
 
@@ -1275,14 +1275,14 @@ section.projects {
 
 @media (max-width: 767px) {
   .footer-inner {
-    padding: 24px 20px 73px clamp(14px, 4vw, 20px);
+    padding: 21.6px 18px 65.7px clamp(12.6px, 3.6vw, 18px);
     min-height: 0;
   }
 
   .footer-top {
     flex-direction: column;
     align-items: flex-start;
-    gap: 32px;
+    gap: 28.8px;
   }
 
   .footer-actions {
