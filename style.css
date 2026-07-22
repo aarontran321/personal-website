@@ -118,23 +118,6 @@ html, body {
   color: #000000;
 }
 
-/* Subtle underline expansion on hover */
-.hero-title::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -10px;
-  width: 0;
-  height: 2px;
-  background: currentColor;
-  opacity: 0.55;
-  transition: width 0.4s ease;
-}
-
-.hero-title:hover::after {
-  width: 100%;
-}
-
 .hero-meta {
   display: flex;
   flex-direction: column;
