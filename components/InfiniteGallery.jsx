@@ -29,6 +29,7 @@ const GALLERY_ITEMS = [
   { id: "pokemonripnight", title: "Pokemon Rip Night", aspect: "vertical", src: "pokemonripnight.jpg", fx: 0.665, fy: 0.853, group: "c" },
   { id: "studentcouncil", title: "Student Council", aspect: "wide", src: "studentcouncil.jpg", fx: 0.895, fy: 0.137, group: "d" },
   { id: "sleephackathon", title: "Hackathon Sleep Situation", aspect: "vertical", src: "sleephackathon.jpg", fx: 0.87, fy: 0.48, group: "d" },
+  { id: "firstatcursor", title: "1st @ Cursor Toronto Hackathon", aspect: "wide", src: "firstatcursor.jpg", fx: 0.88, fy: 0.84, group: "d" },
 ];
 
 // Narrow spread (0.8x-1.35x) so the fastest and slowest groups never drift
