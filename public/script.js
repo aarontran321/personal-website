@@ -398,14 +398,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
-// RETERMINA PROJECT CARD — CLICK-THROUGH TO LIVE SITE
+// PROJECT CARD CLICK-THROUGH
+// Clicking anywhere on a project card opens its Live Demo link if
+// it has one, else its GitHub link, else nothing. Only cards with
+// a destination get the pointer cursor / hover overlay treatment.
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  const reterminaCard = document.querySelector('.project-card-retermina');
-  if (!reterminaCard) return;
+  document.querySelectorAll('.bento-card').forEach((card) => {
+    const demoLink = card.querySelector('a[aria-label="Live Demo"]');
+    const githubLink = card.querySelector('a[aria-label="GitHub"]');
+    const target = demoLink || githubLink;
+    if (!target) return;
 
-  reterminaCard.addEventListener('click', (e) => {
-    if (e.target.closest('a')) return; // GitHub / Live Demo links keep their own destinations
-    window.open('https://retermina.com', '_blank', 'noopener');
+    card.classList.add('bento-card--clickable');
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return; // the card's own links keep their own destinations
+      window.open(target.href, '_blank', 'noopener');
+    });
   });
 });

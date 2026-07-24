@@ -760,8 +760,23 @@ section.projects {
 .bento-card--marrymap  { grid-column: span 6; grid-row: span 1; }
 .bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
 
-.project-card-retermina {
+/* --- cards with a redirect target (live demo or GitHub) --- */
+.bento-card--clickable {
   cursor: pointer;
+}
+
+.bento-card--clickable .bento-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.14);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.bento-card--clickable:hover .bento-visual::after {
+  opacity: 1;
 }
 
 /* --- shared visual container: every card type paints inside this box --- */
