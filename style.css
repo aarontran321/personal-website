@@ -758,7 +758,7 @@ section.projects {
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
 .bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
 .bento-card--marrymap  { grid-column: span 6; grid-row: span 1; }
-.bento-card--faceray   { grid-column: 9 / 13; grid-row: span 1; }
+.bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
 
 .project-card-retermina {
   cursor: pointer;
@@ -1077,7 +1077,7 @@ section.projects {
   }
 
   .bento-card--faceray {
-    grid-column: 2 / 3;
+    grid-column: 1 / 2;
     grid-row: span 1;
   }
 
