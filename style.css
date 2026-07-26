@@ -196,14 +196,13 @@ html, body {
   color: var(--text-color);
 }
 
-/* Yellow highlight over the whole "computer science @ university of
-   waterloo" phrase -- always on, and the anchor now wraps both the
-   "computer science" and "@ university of waterloo" text so clicking
-   anywhere on the highlight follows the link. The sliding image
-   preview (see .hover-preview / preview-trigger below) is bound to
-   this same element, so it also follows the cursor across the whole
-   highlighted phrase. */
-.edu-highlight {
+/* Shared inline highlight: a permanent marker-style box behind a link's
+   text, whole box clickable. Used for the "computer science @ university
+   of waterloo" phrase (yellow) and the BAAM / Retermina mentions in the
+   hero bullets (blue), each redirecting to that project's main link --
+   demo first, GitHub fallback, same precedence as the project-card
+   click-through in script.js. */
+.inline-highlight {
   position: relative;
   display: inline-block;
   z-index: 0;
@@ -211,16 +210,23 @@ html, body {
   text-decoration: none;
 }
 
-.edu-highlight::before {
+.inline-highlight::before {
   content: '';
   position: absolute;
   left: -0.3em;
   right: -0.3em;
   top: -0.1em;
   bottom: -0.1em;
-  background: rgba(250, 204, 21, 0.35);
   border-radius: 0.2em;
   z-index: -1;
+}
+
+.inline-highlight--yellow::before {
+  background: rgba(250, 204, 21, 0.35);
+}
+
+.inline-highlight--blue::before {
+  background: rgba(96, 165, 250, 0.35);
 }
 
 /* Sliding image preview card (trails the cursor with a slight delay) */
