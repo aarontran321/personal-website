@@ -277,6 +277,16 @@ html, body {
   line-height: 1.6;
 }
 
+.bullet-section {
+  font-weight: 700;
+  color: var(--text-color);
+  margin-top: 10px;
+}
+
+.hero-bullets li.bullet-section:first-child {
+  margin-top: 0;
+}
+
 .bullet-arrow {
   color: var(--school-color);
   font-weight: 600;
