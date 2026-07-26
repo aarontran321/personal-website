@@ -193,29 +193,22 @@ html, body {
 .school-link {
   position: relative;
   display: inline-block;
-  font-weight: 700;
   color: var(--text-color);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.school-link:hover {
-  color: #60a5fa;
-}
-
-.light-mode .school-link:hover {
-  color: #2563eb;
 }
 
 /* Yellow highlight over the whole "computer science @ university of
-   waterloo" phrase -- the sliding image preview (see .hover-preview /
-   preview-trigger below) is bound to this same wrapper, so it now
-   follows the cursor across the entire highlighted phrase instead of
-   just the "computer science" link. */
+   waterloo" phrase -- always on, and the anchor now wraps both the
+   "computer science" and "@ university of waterloo" text so clicking
+   anywhere on the highlight follows the link. The sliding image
+   preview (see .hover-preview / preview-trigger below) is bound to
+   this same element, so it also follows the cursor across the whole
+   highlighted phrase. */
 .edu-highlight {
   position: relative;
   display: inline-block;
   z-index: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
 .edu-highlight::before {
@@ -227,16 +220,7 @@ html, body {
   bottom: -0.1em;
   background: rgba(250, 204, 21, 0.35);
   border-radius: 0.2em;
-  opacity: 0;
-  transform: scaleY(0.7);
-  transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: -1;
-}
-
-.edu-highlight:hover::before,
-.edu-highlight:focus-within::before {
-  opacity: 1;
-  transform: scaleY(1);
 }
 
 /* Sliding image preview card (trails the cursor with a slight delay) */
