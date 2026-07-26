@@ -219,14 +219,27 @@ html, body {
   bottom: -0.1em;
   border-radius: 0.2em;
   z-index: -1;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.inline-highlight:hover::before {
+  transform: scale(1.05);
 }
 
 .inline-highlight--yellow::before {
   background: rgba(250, 204, 21, 0.35);
 }
 
+.inline-highlight--yellow:hover::before {
+  background: rgba(250, 204, 21, 0.55);
+}
+
 .inline-highlight--blue::before {
   background: rgba(96, 165, 250, 0.35);
+}
+
+.inline-highlight--blue:hover::before {
+  background: rgba(96, 165, 250, 0.55);
 }
 
 /* Sliding image preview card (trails the cursor with a slight delay) */
