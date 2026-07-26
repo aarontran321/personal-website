@@ -759,6 +759,7 @@ section.projects {
 .bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
 .bento-card--marrymap  { grid-column: span 6; grid-row: span 1; }
 .bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
+.bento-card--nutriai   { grid-column: 5 / 13; grid-row: span 1; }
 
 /* --- cards with a redirect target (live demo or GitHub) --- */
 .bento-card--clickable {
@@ -821,6 +822,12 @@ section.projects {
 .bento-card--faceray .bento-visual {
   aspect-ratio: 4 / 3;
   min-height: 220px;
+}
+
+/* --- nutri.ai: wide trailing block, pairs with FaceRay's row --- */
+.bento-card--nutriai .bento-visual {
+  aspect-ratio: 21 / 8;
+  min-height: 260px;
 }
 
 .thumb-img,
@@ -989,6 +996,14 @@ section.projects {
   background: #db2777;
 }
 
+/* --- nutri.ai: solid coral field behind the app screen recording --- */
+.bento-visual--nutriai {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fb7185;
+}
+
 .gradient-glyph {
   width: 64px;
   height: 64px;
@@ -1096,6 +1111,15 @@ section.projects {
     grid-row: span 1;
   }
 
+  .bento-card--nutriai {
+    grid-column: 2 / 3;
+    grid-row: span 1;
+  }
+
+  .bento-card--nutriai .bento-visual {
+    aspect-ratio: 4 / 3;
+  }
+
   .bento-visual {
     min-height: 260px;
   }
@@ -1111,9 +1135,14 @@ section.projects {
   .bento-card--baam,
   .bento-card--faceray,
   .bento-card--plotboard,
-  .bento-card--marrymap {
+  .bento-card--marrymap,
+  .bento-card--nutriai {
     grid-column: span 1;
     grid-row: span 1;
+  }
+
+  .bento-card--nutriai .bento-visual {
+    aspect-ratio: 4 / 3;
   }
 
   .bento-visual {
