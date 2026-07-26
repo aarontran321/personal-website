@@ -757,9 +757,9 @@ section.projects {
 .bento-card--retermina { grid-column: span 8; grid-row: span 2; }
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
 .bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
-.bento-card--marrymap  { grid-column: span 6; grid-row: span 1; }
+.bento-card--nutriai   { grid-column: span 6; grid-row: span 1; }
 .bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
-.bento-card--nutriai   { grid-column: 5 / 13; grid-row: span 1; }
+.bento-card--marrymap  { grid-column: 5 / 13; grid-row: span 1; }
 
 /* --- cards with a redirect target (live demo or GitHub) --- */
 .bento-card--clickable {
@@ -813,7 +813,7 @@ section.projects {
   min-height: 340px;
 }
 
-.bento-card--marrymap .bento-visual {
+.bento-card--nutriai .bento-visual {
   aspect-ratio: 16 / 9;
   min-height: 340px;
 }
@@ -824,8 +824,8 @@ section.projects {
   min-height: 220px;
 }
 
-/* --- nutri.ai: wide trailing block, pairs with FaceRay's row --- */
-.bento-card--nutriai .bento-visual {
+/* --- Marrymap: wide trailing block, pairs with FaceRay's row --- */
+.bento-card--marrymap .bento-visual {
   aspect-ratio: 21 / 8;
   min-height: 260px;
 }
@@ -1096,7 +1096,7 @@ section.projects {
 
   .bento-card--retermina,
   .bento-card--plotboard,
-  .bento-card--marrymap {
+  .bento-card--nutriai {
     grid-column: span 2;
     grid-row: span 1;
   }
@@ -1111,12 +1111,12 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--nutriai {
+  .bento-card--marrymap {
     grid-column: 2 / 3;
     grid-row: span 1;
   }
 
-  .bento-card--nutriai .bento-visual {
+  .bento-card--marrymap .bento-visual {
     aspect-ratio: 4 / 3;
   }
 
@@ -1141,7 +1141,7 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--nutriai .bento-visual {
+  .bento-card--marrymap .bento-visual {
     aspect-ratio: 4 / 3;
   }
 
