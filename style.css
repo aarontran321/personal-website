@@ -207,6 +207,38 @@ html, body {
   color: #2563eb;
 }
 
+/* Yellow highlight over the whole "computer science @ university of
+   waterloo" phrase -- the sliding image preview (see .hover-preview /
+   preview-trigger below) is bound to this same wrapper, so it now
+   follows the cursor across the entire highlighted phrase instead of
+   just the "computer science" link. */
+.edu-highlight {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+}
+
+.edu-highlight::before {
+  content: '';
+  position: absolute;
+  left: -0.3em;
+  right: -0.3em;
+  top: -0.1em;
+  bottom: -0.1em;
+  background: rgba(250, 204, 21, 0.35);
+  border-radius: 0.2em;
+  opacity: 0;
+  transform: scaleY(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: -1;
+}
+
+.edu-highlight:hover::before,
+.edu-highlight:focus-within::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
 /* Sliding image preview card (trails the cursor with a slight delay) */
 .hover-preview {
   position: absolute;
