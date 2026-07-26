@@ -279,7 +279,7 @@ html, body {
 
 .bullet-section {
   font-size: 0.55em;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-color);
   margin-top: 2px;
 }
