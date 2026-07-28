@@ -47,11 +47,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
-// FOOTER — COPY EMAIL TO CLIPBOARD (+ cursor tooltip)
+// FOOTER-STYLE EMAIL BUTTON — COPY TO CLIPBOARD (+ cursor tooltip)
+// Same widget appears in the site footer and, on the about page, a
+// second time at the bottom of the hero text — both share this class
+// and the one floating tooltip.
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  const copyBtn = document.getElementById('footerCopyEmailBtn');
-  if (!copyBtn) return;
+  const copyBtns = document.querySelectorAll('.footer-email-btn');
+  if (!copyBtns.length) return;
 
   let resetTimeout;
 
@@ -66,39 +69,68 @@ document.addEventListener('DOMContentLoaded', () => {
     tooltip.style.transform = `translate(${x}px, ${y}px) translate(-50%, -150%)`;
   }
 
-  copyBtn.addEventListener('mouseenter', (e) => {
-    tooltip.classList.remove('copied');
-    tooltip.textContent = 'Copy email';
-    moveTooltipTo(e.clientX, e.clientY);
-    tooltip.classList.add('active');
-  });
-
-  copyBtn.addEventListener('mousemove', (e) => {
-    moveTooltipTo(e.clientX, e.clientY);
-  });
-
-  copyBtn.addEventListener('mouseleave', () => {
-    tooltip.classList.remove('active');
-  });
-
-  copyBtn.addEventListener('click', () => {
-    // The button itself never changes — only the floating tooltip reflects
-    // the copied state. Updated immediately rather than waiting on the
-    // clipboard promise, since that promise can fail to resolve (e.g. an
-    // insecure context) and would otherwise leave the tooltip stuck.
-    clearTimeout(resetTimeout);
-    tooltip.textContent = 'Copied!';
-    tooltip.classList.add('copied');
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(copyBtn.dataset.email).catch(() => {});
-    }
-
-    resetTimeout = setTimeout(() => {
-      tooltip.textContent = 'Copy email';
+  copyBtns.forEach((copyBtn) => {
+    copyBtn.addEventListener('mouseenter', (e) => {
       tooltip.classList.remove('copied');
-    }, 2000);
+      tooltip.textContent = 'Copy email';
+      moveTooltipTo(e.clientX, e.clientY);
+      tooltip.classList.add('active');
+    });
+
+    copyBtn.addEventListener('mousemove', (e) => {
+      moveTooltipTo(e.clientX, e.clientY);
+    });
+
+    copyBtn.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('active');
+    });
+
+    copyBtn.addEventListener('click', () => {
+      // The button itself never changes — only the floating tooltip reflects
+      // the copied state. Updated immediately rather than waiting on the
+      // clipboard promise, since that promise can fail to resolve (e.g. an
+      // insecure context) and would otherwise leave the tooltip stuck.
+      clearTimeout(resetTimeout);
+      tooltip.textContent = 'Copied!';
+      tooltip.classList.add('copied');
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(copyBtn.dataset.email).catch(() => {});
+      }
+
+      resetTimeout = setTimeout(() => {
+        tooltip.textContent = 'Copy email';
+        tooltip.classList.remove('copied');
+      }, 2000);
+    });
   });
+});
+
+// ==========================================================
+// ABOUT PAGE — rotating "outside of..." activity phrase
+// Single sentence stays put; only the trailing clause cycles through
+// the activity list every 2.5s with a quick cross-fade.
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const rotator = document.getElementById('aboutRotator');
+  if (!rotator) return;
+
+  const phrases = [
+    'playing volleyball with friends',
+    'fishing in new places',
+    'exploring new coffee shops around the city',
+    'tinkering with side projects and exploring new tech stacks',
+  ];
+  let index = 0;
+
+  setInterval(() => {
+    rotator.classList.add('is-fading');
+    setTimeout(() => {
+      index = (index + 1) % phrases.length;
+      rotator.textContent = phrases[index];
+      rotator.classList.remove('is-fading');
+    }, 250);
+  }, 2500);
 });
 
 // ==========================================================
