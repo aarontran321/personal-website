@@ -90,6 +90,14 @@
     justify-content: center;
     background: var(--bg-color);
     cursor: crosshair;
+    /* On touch devices, a finger drag inside the hero should paint the
+       trail instead of scrolling the page — telling the browser there's
+       no default touch action here (rather than fighting scroll with
+       manual preventDefault) is what makes that happen reliably. */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .cursor-trail-hint {
