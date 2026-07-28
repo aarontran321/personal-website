@@ -1278,7 +1278,7 @@ section.projects {
   text-transform: none;
   letter-spacing: 0.2px;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.09rem, 1.68vw, 1.49rem);
+  font-size: clamp(1.36rem, 2.1vw, 1.86rem);
   font-weight: 400;
   color: #e4e4e7;
   opacity: 0.92;
@@ -1291,7 +1291,7 @@ section.projects {
 
 .footer-subtext {
   margin-top: 7.2px;
-  font-size: 0.67rem;
+  font-size: 0.84rem;
   color: #71717a;
   letter-spacing: 0.2px;
 }
@@ -1317,7 +1317,7 @@ section.projects {
 .footer-nav a {
   color: #8b8b93;
   text-decoration: none;
-  font-size: 0.69rem;
+  font-size: 0.86rem;
   letter-spacing: 0.3px;
   transition: color 0.2s ease;
 }
@@ -1335,7 +1335,7 @@ section.projects {
   border-radius: 5.4px;
   padding: 5.4px 10.8px;
   color: #a1a1aa;
-  font-size: 0.69rem;
+  font-size: 0.86rem;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
