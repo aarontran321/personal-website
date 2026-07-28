@@ -34,7 +34,14 @@
 </header>
 
 <section class="cursor-trail-hero" id="cursorTrailHero">
-  <p class="cursor-trail-hint">move cursor </p>
+  <!-- Absolutely-covers-the-hero hit target for the touch-lock: a sibling
+       of the controls (not an ancestor), so its touch-action: none doesn't
+       also swallow the horizontal swipe on the button row below — touch
+       gestures are resolved per hit-tested element, and the buttons paint
+       above this layer wherever they overlap it. -->
+  <div class="cursor-trail-hitbox"></div>
+
+  <p class="cursor-trail-hint">move cursor/finger</p>
 
   <div class="trail-controls" id="trailControls">
     <button type="button" class="trail-control-btn" data-control="size">
@@ -90,10 +97,17 @@
     justify-content: center;
     background: var(--bg-color);
     cursor: crosshair;
-    /* On touch devices, a finger drag inside the hero should paint the
-       trail instead of scrolling the page — telling the browser there's
-       no default touch action here (rather than fighting scroll with
-       manual preventDefault) is what makes that happen reliably. */
+  }
+
+  /* On touch devices, a finger drag over this layer should paint the
+     trail instead of scrolling the page — telling the browser there's
+     no default touch action here (rather than fighting scroll with
+     manual preventDefault) is what makes that happen reliably. Kept on
+     its own layer rather than the whole hero so the control buttons
+     (which paint above it) can still be swiped/scrolled normally. */
+  .cursor-trail-hitbox {
+    position: absolute;
+    inset: 0;
     touch-action: none;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -174,6 +188,36 @@
   .trail-control-btn:focus-visible {
     outline: 2px solid #60a5fa;
     outline-offset: 2px;
+  }
+
+  /* Mobile: instead of wrapping all 5 buttons into a stacked column, keep
+     them in a single swipeable row — sized so ~4 sit fully in view and the
+     5th peeks in at the edge as a hint that there's more to scroll to. */
+  @media (max-width: 640px) {
+    .trail-controls {
+      left: 0;
+      right: 0;
+      transform: none;
+      max-width: 100%;
+      width: 100%;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      gap: 6px;
+      padding: 0 16px;
+    }
+
+    .trail-controls::-webkit-scrollbar {
+      display: none;
+    }
+
+    .trail-control-btn {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      font-size: 0.56rem;
+    }
   }
 
   .trail-img-outer {
