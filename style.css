@@ -629,7 +629,7 @@ section.about-hero {
   max-width: 72rem;
   margin: 0 auto;
   padding: 6rem 1.5rem 2.5rem;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .about-hero-text {
@@ -656,17 +656,17 @@ section.about-hero {
 }
 
 .about-hero-paragraph {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.7;
-  letter-spacing: -0.01em;
-  word-spacing: -0.03em;
+  letter-spacing: -0.005em;
+  word-spacing: -0.02em;
   color: var(--school-color);
 }
 
 .about-hero-link {
-  font-weight: 400;
+  font-weight: 600;
   color: var(--text-color);
   text-decoration: none;
 }
@@ -688,7 +688,6 @@ section.about-hero {
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
-  font-weight: 400;
   vertical-align: baseline;
 }
 

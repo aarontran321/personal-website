@@ -108,18 +108,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==========================================================
 // ABOUT PAGE — rotating "outside of..." activity phrase
-// Single sentence stays put; only the trailing clause cycles through
-// the activity list every 2.5s with a quick cross-fade.
+// The lead-in text is followed by a hard line break, and this phrase
+// always renders on that second line — never inline with the lead-in —
+// so the cross-fade every 2.5s doesn't reflow the paragraph.
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
   const rotator = document.getElementById('aboutRotator');
   if (!rotator) return;
 
   const phrases = [
-    'playing volleyball with friends',
-    'fishing in new places',
-    'exploring new coffee shops around the city',
-    'tinkering with side projects and exploring new tech stacks',
+    'playing volleyball with friends.',
+    'fishing in unique places.',
+    'exploring new coffee shops around the city.',
+    'tinkering with side projects and exploring new tech stacks.',
   ];
   let index = 0;
 
