@@ -213,8 +213,8 @@ html, body {
 .inline-highlight::before {
   content: '';
   position: absolute;
-  left: -0.3em;
-  right: -0.3em;
+  left: -0.08em;
+  right: -0.08em;
   top: -0.1em;
   bottom: -0.1em;
   border-radius: 0.2em;
@@ -235,12 +235,38 @@ html, body {
 }
 
 .inline-highlight--blue::before {
-  right: -0.05em;
   background: rgba(96, 165, 250, 0.35);
 }
 
 .inline-highlight--blue:hover::before {
   background: rgba(96, 165, 250, 0.55);
+}
+
+.inline-highlight--dark::before {
+  background: rgba(51, 65, 85, 0.16);
+}
+
+.inline-highlight--dark:hover::before {
+  background: rgba(51, 65, 85, 0.28);
+}
+
+.inline-highlight-icon {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-left: 0.35em;
+  vertical-align: -0.12em;
+  object-fit: contain;
+  border-radius: 2px;
+}
+
+/* For logos (like Hack the Valley's) that are drawn in white and need a
+   solid backdrop to read against the translucent highlight color. */
+.inline-highlight-icon--badge {
+  background: #2563eb;
+  border-radius: 50%;
+  padding: 0.14em;
+  box-sizing: content-box;
 }
 
 /* Sliding image preview card (trails the cursor with a slight delay) */
