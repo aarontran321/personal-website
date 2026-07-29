@@ -252,21 +252,12 @@ html, body {
 
 .inline-highlight-icon {
   display: inline-block;
-  width: 1.35em;
-  height: 1.35em;
+  width: 1.15em;
+  height: 1.15em;
   margin-left: 0.3em;
-  vertical-align: -0.3em;
+  vertical-align: -0.22em;
   object-fit: contain;
   border-radius: 3px;
-}
-
-/* For logos (like Hack the Valley's) that are drawn in white and need a
-   solid backdrop to read against the page background. */
-.inline-highlight-icon--badge {
-  background: #2563eb;
-  border-radius: 50%;
-  padding: 0.16em;
-  box-sizing: content-box;
 }
 
 /* Sliding image preview card (trails the cursor with a slight delay) */
