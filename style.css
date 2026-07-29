@@ -817,7 +817,8 @@ h2 {
    ========================================== */
 section.projects {
   position: relative;
-  max-width: 1780px;
+  max-width: clamp(1780px, 92vw, 2400px);
+  margin: 0 auto;
   padding: 140px clamp(32px, 6vw, 96px) 180px;
 }
 
