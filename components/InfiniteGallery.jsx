@@ -56,6 +56,15 @@ const MIN_TILE_W = 1350;
 const MIN_TILE_H = 1090;
 const TILE_MULT_W = 0.97;
 const TILE_MULT_H = 1.22;
+// Upper bound on tile size, set to what TILE_MULT_W/H produce at a 1920x1080
+// viewport (the size this was tuned to look right at). Without a cap, wider
+// monitors (2560px+) grow the tile — and therefore the empty space between
+// photos, since card sizes in ASPECT_SIZE stay fixed px — proportionally
+// larger, reading as oddly sparse. Capping it means larger screens simply
+// reveal more repeats of the same tightly-packed tile instead of stretching
+// it out.
+const MAX_TILE_W = 1865;
+const MAX_TILE_H = 1320;
 
 // Passive cursor parallax baseline (multiplied per-card by GROUP_FACTORS
 // above). Sized so that even the fastest group's max offset stays well
@@ -166,8 +175,8 @@ export default function InfiniteGallery() {
       const w = el ? el.clientWidth : window.innerWidth;
       const h = el ? el.clientHeight : window.innerHeight;
       setTile({
-        w: Math.max(MIN_TILE_W, Math.round(w * TILE_MULT_W)),
-        h: Math.max(MIN_TILE_H, Math.round(h * TILE_MULT_H)),
+        w: clamp(Math.round(w * TILE_MULT_W), MIN_TILE_W, MAX_TILE_W),
+        h: clamp(Math.round(h * TILE_MULT_H), MIN_TILE_H, MAX_TILE_H),
       });
     }
     recalc();
