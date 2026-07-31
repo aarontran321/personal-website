@@ -119,7 +119,7 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY, onOpen, dragSuppressRef }) {
+function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY }) {
   const size = ASPECT_SIZE[item.aspect];
   const factor = GROUP_FACTORS[item.group];
   const px = useTransform(parallaxX, (v) => v * factor);
@@ -145,17 +145,6 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY, onOpen, 
 
   useEffect(() => () => clearTimeout(leaveTimer.current), []);
 
-  // A click fires after pointerup regardless of how far the pointer
-  // travelled in between, so a drag-release would otherwise also open the
-  // lightbox. dragSuppressRef is flipped true by the canvas's own pointer
-  // handlers once movement crosses a small threshold, and reset on the next
-  // pointerdown — this reads that flag to tell an intentional click from a
-  // drag release.
-  const handleClick = () => {
-    if (dragSuppressRef.current) return;
-    onOpen(index);
-  };
-
   return (
     <motion.figure
       className="gallery-card"
@@ -165,9 +154,9 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY, onOpen, 
         ref={frameRef}
         className="gallery-card-frame"
         style={{ height: size.h }}
+        data-gallery-index={index}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
-        onClick={handleClick}
       >
         <img
           src={`/images/gallery/${item.src}`}
@@ -183,8 +172,8 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY, onOpen, 
   );
 }
 
-// Full-screen viewer opened by clicking a card. Renders the current photo in
-// a larger polaroid-style frame with prev/next arrows either side, both
+// Full-screen viewer opened by clicking a card. Renders the current photo
+// edge-to-edge in a dark glass frame with prev/next arrows either side, both
 // vertically centered on the frame via the shared grid row (see
 // .gallery-lightbox in style.css) so they stay aligned regardless of the
 // photo's aspect ratio.
@@ -230,13 +219,20 @@ function Lightbox({ items, index, onClose, onNav }) {
           key={item.id}
           className="gallery-lightbox-frame"
           onClick={(e) => e.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.92 }}
+          initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
+          exit={{ opacity: 0, scale: 0.97 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
         >
-          <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
-          <figcaption className="gallery-lightbox-caption">{item.title}</figcaption>
+          <div className="gallery-lightbox-image-wrap">
+            <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
+          </div>
+          <figcaption className="gallery-lightbox-caption">
+            <span className="gallery-lightbox-count">
+              {String(index + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}
+            </span>
+            <span className="gallery-lightbox-title">{item.title}</span>
+          </figcaption>
         </motion.figure>
       </AnimatePresence>
 
@@ -302,7 +298,7 @@ export default function InfiniteGallery() {
   const worldY = useTransform(panY, (v) => wrap(v, tile.h));
 
   // Drag/momentum bookkeeping lives in a ref so it never triggers re-renders.
-  const drag = useRef({ active: false, lastX: 0, lastY: 0, lastT: 0, vx: 0, vy: 0, startX: 0, startY: 0 });
+  const drag = useRef({ active: false, lastX: 0, lastY: 0, lastT: 0, vx: 0, vy: 0, startX: 0, startY: 0, downTarget: null });
   const momentumRaf = useRef(null);
 
   // Flipped true once a drag moves past a small threshold (see
@@ -364,6 +360,13 @@ export default function InfiniteGallery() {
     if (e.button !== 0) return;
     stopMomentum();
     const el = containerRef.current;
+    // Captured *before* setPointerCapture below — once capture is active,
+    // Chromium/Firefox retarget the matching pointerup (and its
+    // compatibility mouseup/click) to this container instead of whatever's
+    // visually under the cursor, so a native onClick on the card never
+    // fires. Recording the real target now, while it's still accurate, is
+    // what lets handlePointerUp open the right card.
+    const downTarget = e.target.closest(".gallery-card-frame");
     el.setPointerCapture(e.pointerId);
     dragSuppressRef.current = false;
     drag.current = {
@@ -375,6 +378,7 @@ export default function InfiniteGallery() {
       vy: 0,
       startX: e.clientX,
       startY: e.clientY,
+      downTarget,
     };
     // Ease the passive-hover offset back to 0 (not an instant jump) so a
     // click/drag start never causes a visible snap — it just blends into
@@ -427,6 +431,14 @@ export default function InfiniteGallery() {
     d.active = false;
     const el = containerRef.current;
     if (el && el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    // Movement never crossed the click threshold and the press started on a
+    // card — treat it as a tap and open that card, rather than depending on
+    // a native click event (see the pointer-capture note in
+    // handlePointerDown for why that doesn't reliably reach the card).
+    if (!dragSuppressRef.current && d.downTarget) {
+      const idx = Number(d.downTarget.getAttribute("data-gallery-index"));
+      if (!Number.isNaN(idx)) openLightbox(idx);
+    }
     runMomentum();
   };
 
@@ -487,8 +499,6 @@ export default function InfiniteGallery() {
                     tileH={tile.h}
                     parallaxX={parallaxX}
                     parallaxY={parallaxY}
-                    onOpen={openLightbox}
-                    dragSuppressRef={dragSuppressRef}
                   />
                 ))}
               </div>

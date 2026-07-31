@@ -1625,19 +1625,23 @@ section.gallery-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: min(560px, 82vw);
-  max-height: 84vh;
-  padding: 18px 18px 22px;
-  background: #faf7f2;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  gap: 16px;
+  max-width: min(760px, 86vw);
+  max-height: 88vh;
   cursor: default;
+}
+
+.gallery-lightbox-image-wrap {
+  line-height: 0;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 }
 
 .gallery-lightbox-frame img {
   display: block;
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 74vh;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1646,12 +1650,24 @@ section.gallery-section {
 }
 
 .gallery-lightbox-caption {
-  margin-top: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
-  font-size: 0.75rem;
+}
+
+.gallery-lightbox-count {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.4);
+}
+
+.gallery-lightbox-title {
+  font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: #4a4a4a;
+  color: rgba(248, 250, 252, 0.92);
 }
 
 .gallery-lightbox-arrow {
@@ -1721,7 +1737,7 @@ section.gallery-section {
 
   .gallery-lightbox-frame {
     max-width: 90vw;
-    padding: 12px 12px 16px;
+    gap: 12px;
   }
 }
 
