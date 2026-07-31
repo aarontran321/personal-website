@@ -1466,24 +1466,20 @@ section.gallery-section {
 }
 
 .gallery-intro-text {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-weight: 500;
-  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.6rem, 4.2vw, 2.75rem);
   color: var(--text-color);
-  letter-spacing: 0.2px;
+  letter-spacing: -0.02em;
   max-width: 34ch;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.15;
   /* Balances the two wrapped lines instead of leaving a short, ragged
      trailing line. */
   text-wrap: balance;
 }
 
-/* Same italic-accent device used on the hero title's "Aaron" — without it
-   this line was the only serif heading text on the page with no accent,
-   which is why it read as flat, generic Times-New-Roman-ish text. */
 .gallery-intro-accent {
-  font-style: italic;
   color: #60a5fa;
 }
 
