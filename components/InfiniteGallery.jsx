@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 
 // One repeating "tile" of scattered photos, packed onto a loose 4x3 grid and
 // jittered off-axis so it reads as randomly staggered rather than a rigid
@@ -100,6 +100,12 @@ const TILE_COPIES = [-1, 0, 1];
 // stuck mid-animation). Short enough to still feel immediate.
 const HOVER_LEAVE_DELAY = 100;
 
+// Below this many px of total travel since pointerdown, a drag still reads
+// as a click that should open the lightbox — small enough that an
+// intentional click never accidentally pans, large enough to absorb natural
+// hand jitter. See dragSuppressRef in InfiniteGallery.
+const CLICK_MOVE_THRESHOLD = 5;
+
 // Wraps a value into a range centered on 0, e.g. wrap(x, 1000) stays within
 // [-500, 500) — shifting by a whole tile is invisible in a repeating grid,
 // so this is applied only to the rendered (post-spring) position, never to
@@ -113,7 +119,7 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function GalleryCard({ item, tileW, tileH, parallaxX, parallaxY }) {
+function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY, onOpen, dragSuppressRef }) {
   const size = ASPECT_SIZE[item.aspect];
   const factor = GROUP_FACTORS[item.group];
   const px = useTransform(parallaxX, (v) => v * factor);
@@ -139,6 +145,17 @@ function GalleryCard({ item, tileW, tileH, parallaxX, parallaxY }) {
 
   useEffect(() => () => clearTimeout(leaveTimer.current), []);
 
+  // A click fires after pointerup regardless of how far the pointer
+  // travelled in between, so a drag-release would otherwise also open the
+  // lightbox. dragSuppressRef is flipped true by the canvas's own pointer
+  // handlers once movement crosses a small threshold, and reset on the next
+  // pointerdown — this reads that flag to tell an intentional click from a
+  // drag release.
+  const handleClick = () => {
+    if (dragSuppressRef.current) return;
+    onOpen(index);
+  };
+
   return (
     <motion.figure
       className="gallery-card"
@@ -150,6 +167,7 @@ function GalleryCard({ item, tileW, tileH, parallaxX, parallaxY }) {
         style={{ height: size.h }}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
       >
         <img
           src={`/images/gallery/${item.src}`}
@@ -162,6 +180,77 @@ function GalleryCard({ item, tileW, tileH, parallaxX, parallaxY }) {
         <span className="gallery-card-title">{item.title}</span>
       </figcaption>
     </motion.figure>
+  );
+}
+
+// Full-screen viewer opened by clicking a card. Renders the current photo in
+// a larger polaroid-style frame with prev/next arrows either side, both
+// vertically centered on the frame via the shared grid row (see
+// .gallery-lightbox in style.css) so they stay aligned regardless of the
+// photo's aspect ratio.
+function Lightbox({ items, index, onClose, onNav }) {
+  const item = items[index];
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") onNav(1);
+      else if (e.key === "ArrowLeft") onNav(-1);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, onNav]);
+
+  return (
+    <motion.div
+      className="gallery-lightbox"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.22 }}
+    >
+      <button className="gallery-lightbox-close" onClick={onClose} aria-label="Close">
+        &times;
+      </button>
+
+      <button
+        className="gallery-lightbox-arrow gallery-lightbox-arrow-prev"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNav(-1);
+        }}
+        aria-label="Previous photo"
+      >
+        &#8249;
+      </button>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.figure
+          key={item.id}
+          className="gallery-lightbox-frame"
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+        >
+          <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
+          <figcaption className="gallery-lightbox-caption">{item.title}</figcaption>
+        </motion.figure>
+      </AnimatePresence>
+
+      <button
+        className="gallery-lightbox-arrow gallery-lightbox-arrow-next"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNav(1);
+        }}
+        aria-label="Next photo"
+      >
+        &#8250;
+      </button>
+    </motion.div>
   );
 }
 
@@ -213,8 +302,32 @@ export default function InfiniteGallery() {
   const worldY = useTransform(panY, (v) => wrap(v, tile.h));
 
   // Drag/momentum bookkeeping lives in a ref so it never triggers re-renders.
-  const drag = useRef({ active: false, lastX: 0, lastY: 0, lastT: 0, vx: 0, vy: 0 });
+  const drag = useRef({ active: false, lastX: 0, lastY: 0, lastT: 0, vx: 0, vy: 0, startX: 0, startY: 0 });
   const momentumRaf = useRef(null);
+
+  // Flipped true once a drag moves past a small threshold (see
+  // handlePointerMove) and reset on the next pointerdown. Cards read this to
+  // tell an intentional click from the click that fires after a drag
+  // release.
+  const dragSuppressRef = useRef(false);
+
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
+  const openLightbox = (idx) => setLightboxIndex(idx);
+  const closeLightbox = () => setLightboxIndex(null);
+  const navLightbox = (dir) => {
+    setLightboxIndex((i) => (i === null ? i : (i + dir + GALLERY_ITEMS.length) % GALLERY_ITEMS.length));
+  };
+
+  // Lock page scroll behind the full-screen lightbox.
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [lightboxIndex]);
 
   const stopMomentum = () => {
     if (momentumRaf.current) {
@@ -252,7 +365,17 @@ export default function InfiniteGallery() {
     stopMomentum();
     const el = containerRef.current;
     el.setPointerCapture(e.pointerId);
-    drag.current = { active: true, lastX: e.clientX, lastY: e.clientY, lastT: performance.now(), vx: 0, vy: 0 };
+    dragSuppressRef.current = false;
+    drag.current = {
+      active: true,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      lastT: performance.now(),
+      vx: 0,
+      vy: 0,
+      startX: e.clientX,
+      startY: e.clientY,
+    };
     // Ease the passive-hover offset back to 0 (not an instant jump) so a
     // click/drag start never causes a visible snap — it just blends into
     // uniform pan over the next few frames as the spring settles.
@@ -275,6 +398,9 @@ export default function InfiniteGallery() {
   const handlePointerMove = (e) => {
     const d = drag.current;
     if (!d.active) return;
+    if (!dragSuppressRef.current && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > CLICK_MOVE_THRESHOLD) {
+      dragSuppressRef.current = true;
+    }
     const now = performance.now();
     const dt = Math.max(1, now - d.lastT);
     // Scale the raw pointer delta down so the canvas covers less ground per
@@ -352,14 +478,17 @@ export default function InfiniteGallery() {
                 className="gallery-tile"
                 style={{ transform: `translate(${ix * tile.w}px, ${iy * tile.h}px)`, width: tile.w, height: tile.h }}
               >
-                {items.map((item) => (
+                {items.map((item, idx) => (
                   <GalleryCard
                     key={item.id}
                     item={item}
+                    index={idx}
                     tileW={tile.w}
                     tileH={tile.h}
                     parallaxX={parallaxX}
                     parallaxY={parallaxY}
+                    onOpen={openLightbox}
+                    dragSuppressRef={dragSuppressRef}
                   />
                 ))}
               </div>
@@ -367,6 +496,17 @@ export default function InfiniteGallery() {
           )}
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <Lightbox
+            items={items}
+            index={lightboxIndex}
+            onClose={closeLightbox}
+            onNav={navLightbox}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
