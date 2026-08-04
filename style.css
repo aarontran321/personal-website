@@ -250,6 +250,14 @@ html, body {
   background: rgba(51, 65, 85, 0.28);
 }
 
+.inline-highlight--purple::before {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+.inline-highlight--purple:hover::before {
+  background: rgba(168, 85, 247, 0.55);
+}
+
 .inline-highlight-icon {
   display: inline-block;
   width: 1.5em;
