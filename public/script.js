@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // and the one floating tooltip.
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  const copyBtns = document.querySelectorAll('.footer-email-btn');
+  const copyBtns = document.querySelectorAll('.footer-email-btn[data-email]');
   if (!copyBtns.length) return;
 
   let resetTimeout;

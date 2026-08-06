@@ -716,13 +716,22 @@ section.about-hero {
   vertical-align: baseline;
 }
 
+.about-hero-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
 /* Reuses the footer's copy-to-clipboard email pill, retinted for the
    light about-hero background instead of the dark footer. */
 .footer-email-btn.about-hero-email-feature {
-  margin-top: 0.25rem;
+  margin-top: 0;
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
   color: var(--school-color);
   border-color: var(--btn-border);
+  text-decoration: none;
 }
 
 .footer-email-btn.about-hero-email-feature:hover {
