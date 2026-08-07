@@ -94,7 +94,7 @@ html, body {
 }
 
 .hero-phrase {
-  display: inline-block;
+  display: inline;
   opacity: 0;
   animation: hero-phrase-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -122,11 +122,9 @@ html, body {
 @keyframes hero-phrase-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -134,28 +132,24 @@ html, body {
 @keyframes hero-engineers-in {
   0% {
     opacity: 0;
-    transform: translateY(10px);
     color: transparent;
     -webkit-text-fill-color: transparent;
     -webkit-text-stroke: 1.4px var(--hero-accent);
   }
   38% {
     opacity: 1;
-    transform: translateY(0);
     color: transparent;
     -webkit-text-fill-color: transparent;
     -webkit-text-stroke: 1.4px var(--hero-accent);
   }
   62% {
     opacity: 1;
-    transform: translateY(0);
     color: transparent;
     -webkit-text-fill-color: transparent;
     -webkit-text-stroke: 1.4px var(--hero-accent);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
     color: var(--hero-accent);
     -webkit-text-fill-color: var(--hero-accent);
     -webkit-text-stroke: 0 transparent;
@@ -175,7 +169,6 @@ html, body {
   .hero-phrase--4 {
     animation: none;
     opacity: 1;
-    transform: none;
     color: inherit;
     -webkit-text-fill-color: currentColor;
     -webkit-text-stroke: 0;
