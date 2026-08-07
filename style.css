@@ -86,13 +86,43 @@ html, body {
   line-height: 1.3;
   letter-spacing: 0;
   color: var(--text-color);
-  animation: hero-title-in 0.9s ease both;
+  --hero-accent: #60a5fa;
 }
 
-@keyframes hero-title-in {
+.light-mode .hero-title {
+  --hero-accent: #2563eb;
+}
+
+.hero-phrase {
+  display: inline-block;
+  opacity: 0;
+  animation: hero-phrase-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-phrase--1 {
+  animation-delay: 0.12s;
+}
+
+.hero-phrase--2 {
+  animation-delay: 0.58s;
+}
+
+.hero-phrase--3 {
+  animation-delay: 1.04s;
+}
+
+.hero-phrase--4 {
+  animation-name: hero-engineers-in;
+  animation-duration: 1.05s;
+  animation-delay: 1.55s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes hero-phrase-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -100,15 +130,61 @@ html, body {
   }
 }
 
+/* Outline first, then fill with accent blue */
+@keyframes hero-engineers-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1.4px var(--hero-accent);
+  }
+  38% {
+    opacity: 1;
+    transform: translateY(0);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1.4px var(--hero-accent);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(0);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1.4px var(--hero-accent);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    color: var(--hero-accent);
+    -webkit-text-fill-color: var(--hero-accent);
+    -webkit-text-stroke: 0 transparent;
+  }
+}
+
 .hero-title-accent {
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-weight: 500;
-  color: #60a5fa;
+  color: var(--hero-accent);
+  -webkit-text-fill-color: var(--hero-accent);
 }
 
-.light-mode .hero-title-accent {
-  color: #2563eb;
+@media (prefers-reduced-motion: reduce) {
+  .hero-phrase,
+  .hero-phrase--4 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+    -webkit-text-stroke: 0;
+  }
+
+  .hero-title-accent {
+    color: var(--hero-accent);
+    -webkit-text-fill-color: var(--hero-accent);
+  }
 }
 
 .hero-title-accent-neutral {
