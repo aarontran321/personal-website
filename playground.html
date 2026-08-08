@@ -206,6 +206,8 @@
     --slime-scale: 1;
     --slime-ox: 50%;
     --slime-oy: 50%;
+    --slime-skew: 0deg;
+    --slime-edge: 0;
     --slime-blob-x: 50%;
     --slime-blob-y: 50%;
     --slime-blob-w: 0px;
@@ -273,11 +275,11 @@
     width: var(--slime-blob-w);
     height: var(--slime-blob-h);
     margin: 0;
-    border-radius: 45% 55% 52% 48% / 48% 46% 54% 52%;
+    border-radius: 42% 58% 52% 48% / 48% 42% 58% 52%;
     background: var(--card-bg);
     border: 1.5px solid var(--btn-border);
     opacity: var(--slime-blob-opacity);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) skewX(var(--slime-skew));
     pointer-events: none;
   }
 
@@ -621,18 +623,16 @@
     });
 
     // ---------------------------------------------------------------
-    // Slime buttons — gooey local bulge that tracks the pointer.
-    // Pure CSS vars + one rAF loop per hovered button; no images/WebGL.
+    // Slime buttons — soft gel membrane.
+    // Design: calm & contained near the center; near the rim the mass
+    // stretches outward like pressure against a skin. Pointer speed
+    // adds a short whip of stretch; a lagging blob trails behind.
     // ---------------------------------------------------------------
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!reduceMotion) {
-      const SLIME_LERP = 0.28;
-      const SLIME_LAG_LERP = 0.12;
-      const SLIME_SIZE_LERP = 0.2;
-      const SLIME_IDLE_SIZE = 0;
-      const SLIME_HOVER_SIZE = 58;
-      const SLIME_PRESS_SIZE = 76;
-      const SLIME_SCALE_MAX = 1.16;
+      const SLIME_LERP = 0.3;
+      const SLIME_LAG_LERP = 0.1;
+      const SLIME_SIZE_LERP = 0.22;
 
       document.querySelectorAll('.trail-control-btn').forEach((btn) => {
         let active = false;
@@ -654,20 +654,50 @@
         let curOpacity = 0;
         let targetScale = 1;
         let curScale = 1;
+        let targetSkew = 0;
+        let curSkew = 0;
 
         function slimePad() {
           return parseFloat(getComputedStyle(btn).getPropertyValue('--slime-pad')) || 40;
         }
 
-        function setTargetsFromEvent(e) {
+        function driveFromEvent(e) {
           const rect = btn.getBoundingClientRect();
           const pad = slimePad();
-          targetX = e.clientX - rect.left + pad;
-          targetY = e.clientY - rect.top + pad;
-          const ox = ((e.clientX - rect.left) / Math.max(rect.width, 1)) * 100;
-          const oy = ((e.clientY - rect.top) / Math.max(rect.height, 1)) * 100;
-          btn.style.setProperty('--slime-glow-x', `${ox}%`);
-          btn.style.setProperty('--slime-glow-y', `${oy}%`);
+          const localX = e.clientX - rect.left;
+          const localY = e.clientY - rect.top;
+          const hw = Math.max(rect.width, 1) * 0.5;
+          const hh = Math.max(rect.height, 1) * 0.5;
+
+          const nx = (localX - hw) / hw;
+          const ny = (localY - hh) / hh;
+          const radial = Math.min(1, Math.hypot(nx, ny));
+          // Nearly linear so the center still reads; rim is stronger, not wild.
+          const edge = Math.pow(radial, 0.9);
+          // Effect strength: ~1 at center → ~5 at the outer edge.
+          const intensity = 1 + edge * 4;
+
+          const len = Math.hypot(nx, ny) || 1;
+          const ux = nx / len;
+          const uy = ny / len;
+
+          // Modest outward push — rim stronger than center, still restrained.
+          const extrude = (pressed ? 1.2 : 0.9) * intensity;
+          targetX = localX + pad + ux * extrude;
+          targetY = localY + pad + uy * extrude;
+
+          const speed = Math.min(Math.hypot(e.movementX || 0, e.movementY || 0), 28);
+          // Keep rim blobs compact — intensity still ~1→5, but each step is small.
+          const size = (pressed ? 10 : 9) * intensity + speed * 0.15;
+          const absUx = Math.abs(ux);
+          const absUy = Math.abs(uy);
+          targetW = Math.max(12, size * (0.92 + absUx * 0.12));
+          targetH = Math.max(12, size * (0.92 + absUy * 0.12));
+
+          targetScale = 1 + (intensity - 1) * 0.012 + speed * 0.0005;
+          targetOpacity = 0.9;
+          targetSkew = Math.max(-4, Math.min(4, (e.movementX || 0) * 0.15));
+          btn.style.setProperty('--slime-edge', edge.toFixed(3));
         }
 
         function tick() {
@@ -677,31 +707,34 @@
           lagY += (curY - lagY) * SLIME_LAG_LERP;
           curW += (targetW - curW) * SLIME_SIZE_LERP;
           curH += (targetH - curH) * SLIME_SIZE_LERP;
-          lagW += (curW * 0.78 - lagW) * SLIME_LAG_LERP;
-          lagH += (curH * 0.78 - lagH) * SLIME_LAG_LERP;
+          lagW += (curW * 0.72 - lagW) * SLIME_LAG_LERP;
+          lagH += (curH * 0.72 - lagH) * SLIME_LAG_LERP;
           curOpacity += (targetOpacity - curOpacity) * SLIME_SIZE_LERP;
           curScale += (targetScale - curScale) * SLIME_SIZE_LERP;
+          curSkew += (targetSkew - curSkew) * SLIME_SIZE_LERP;
 
-          btn.style.setProperty('--slime-blob-x', `${curX}px`);
-          btn.style.setProperty('--slime-blob-y', `${curY}px`);
-          btn.style.setProperty('--slime-blob-w', `${curW}px`);
-          btn.style.setProperty('--slime-blob-h', `${curH}px`);
-          btn.style.setProperty('--slime-lag-x', `${lagX}px`);
-          btn.style.setProperty('--slime-lag-y', `${lagY}px`);
-          btn.style.setProperty('--slime-lag-w', `${lagW}px`);
-          btn.style.setProperty('--slime-lag-h', `${lagH}px`);
-          btn.style.setProperty('--slime-ox', `${curX}px`);
-          btn.style.setProperty('--slime-oy', `${curY}px`);
+          btn.style.setProperty('--slime-blob-x', curX + 'px');
+          btn.style.setProperty('--slime-blob-y', curY + 'px');
+          btn.style.setProperty('--slime-blob-w', curW + 'px');
+          btn.style.setProperty('--slime-blob-h', curH + 'px');
+          btn.style.setProperty('--slime-lag-x', lagX + 'px');
+          btn.style.setProperty('--slime-lag-y', lagY + 'px');
+          btn.style.setProperty('--slime-lag-w', lagW + 'px');
+          btn.style.setProperty('--slime-lag-h', lagH + 'px');
+          btn.style.setProperty('--slime-ox', curX + 'px');
+          btn.style.setProperty('--slime-oy', curY + 'px');
           btn.style.setProperty('--slime-blob-opacity', curOpacity.toFixed(3));
           btn.style.setProperty('--slime-scale', curScale.toFixed(4));
+          btn.style.setProperty('--slime-skew', curSkew.toFixed(2) + 'deg');
 
           const settling =
-            Math.abs(targetX - curX) < 0.2 &&
-            Math.abs(targetY - curY) < 0.2 &&
-            Math.abs(curX - lagX) < 0.3 &&
-            Math.abs(targetW - curW) < 0.2 &&
+            Math.abs(targetX - curX) < 0.25 &&
+            Math.abs(targetY - curY) < 0.25 &&
+            Math.abs(curX - lagX) < 0.4 &&
+            Math.abs(targetW - curW) < 0.3 &&
             Math.abs(targetOpacity - curOpacity) < 0.01 &&
-            Math.abs(targetScale - curScale) < 0.001;
+            Math.abs(targetScale - curScale) < 0.001 &&
+            Math.abs(targetSkew - curSkew) < 0.05;
 
           if (!active && settling) {
             rafId = 0;
@@ -711,6 +744,8 @@
             btn.style.setProperty('--slime-lag-h', '0px');
             btn.style.setProperty('--slime-blob-opacity', '0');
             btn.style.setProperty('--slime-scale', '1');
+            btn.style.setProperty('--slime-skew', '0deg');
+            btn.style.setProperty('--slime-edge', '0');
             return;
           }
 
@@ -719,13 +754,6 @@
 
         function ensureTick() {
           if (!rafId) rafId = requestAnimationFrame(tick);
-        }
-
-        function setSizeTargets(base, speed) {
-          const stretch = Math.min(speed, 42);
-          targetW = base + stretch * 0.9;
-          targetH = Math.max(base * 0.72, base - stretch * 0.35);
-          targetScale = (pressed ? 1.07 : SLIME_SCALE_MAX) + stretch * 0.002;
         }
 
         function arm(e) {
@@ -741,9 +769,7 @@
             targetX = curX;
             targetY = curY;
           }
-          setTargetsFromEvent(e);
-          setSizeTargets(pressed ? SLIME_PRESS_SIZE : SLIME_HOVER_SIZE, 0);
-          targetOpacity = 1;
+          driveFromEvent(e);
           ensureTick();
         }
 
@@ -751,32 +777,30 @@
           active = false;
           pressed = false;
           btn.classList.remove('is-slime-hot');
-          targetW = SLIME_IDLE_SIZE;
-          targetH = SLIME_IDLE_SIZE;
+          targetW = 0;
+          targetH = 0;
           targetOpacity = 0;
           targetScale = 1;
+          targetSkew = 0;
           ensureTick();
         }
 
         btn.addEventListener('pointerenter', arm);
         btn.addEventListener('pointermove', (e) => {
           if (!active) return;
-          setTargetsFromEvent(e);
-          const speed = Math.hypot(e.movementX, e.movementY);
-          setSizeTargets(pressed ? SLIME_PRESS_SIZE : SLIME_HOVER_SIZE, speed);
+          driveFromEvent(e);
           ensureTick();
         });
         btn.addEventListener('pointerleave', disarm);
         btn.addEventListener('pointerdown', (e) => {
           pressed = true;
           btn.setPointerCapture?.(e.pointerId);
-          setSizeTargets(SLIME_PRESS_SIZE, 0);
           arm(e);
         });
-        btn.addEventListener('pointerup', () => {
+        btn.addEventListener('pointerup', (e) => {
           pressed = false;
           if (active) {
-            setSizeTargets(SLIME_HOVER_SIZE, 0);
+            driveFromEvent(e);
             ensureTick();
           }
         });
