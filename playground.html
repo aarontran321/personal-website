@@ -50,7 +50,6 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
-      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Size</span><span class="trail-btn-value">Medium</span>
       </span>
@@ -61,7 +60,6 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
-      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Shape</span><span class="trail-btn-value">Rounded</span>
       </span>
@@ -72,7 +70,6 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
-      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Density</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -83,7 +80,6 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
-      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Trail</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -94,7 +90,6 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
-      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Tint</span><span class="trail-btn-value">Color</span>
       </span>
@@ -296,19 +291,9 @@
     border: 1.5px solid var(--btn-border);
   }
 
-  /* Sharp gray pill rim above the filtered goo so the idle border never washes out */
-  .slime-rim {
-    position: absolute;
-    inset: 0;
-    border-radius: 999px;
-    border: 1.5px solid var(--btn-border);
-    pointer-events: none;
-    z-index: 1;
-  }
-
   .slime-content {
     position: relative;
-    z-index: 2;
+    z-index: 1;
     display: inline-flex;
     align-items: baseline;
     gap: 6px;
