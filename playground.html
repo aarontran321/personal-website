@@ -50,6 +50,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Size</span><span class="trail-btn-value">Medium</span>
       </span>
@@ -60,6 +61,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Shape</span><span class="trail-btn-value">Rounded</span>
       </span>
@@ -70,6 +72,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Density</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -80,6 +83,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Trail</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -90,6 +94,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-rim" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Tint</span><span class="trail-btn-value">Color</span>
       </span>
@@ -247,28 +252,23 @@
   }
 
   .trail-control-btn.is-slime-hot .slime-goo {
-    filter: url(#slime-goo);
+    /* Goo merge + crisp gray rim so the border survives the slime silhouette */
+    filter:
+      url(#slime-goo)
+      drop-shadow(0 0 0.55px var(--btn-border))
+      drop-shadow(0 0 0.55px var(--btn-border));
   }
 
   .slime-base {
     position: absolute;
     inset: var(--slime-pad);
     border-radius: 999px;
-    background:
-      radial-gradient(
-        120px circle at var(--slime-glow-x, 50%) var(--slime-glow-y, 50%),
-        rgba(148, 163, 184, 0.28) 0%,
-        rgba(148, 163, 184, 0.08) 38%,
-        transparent 68%
-      ),
-      var(--card-bg);
-    border: 1px solid var(--btn-border);
+    background: var(--card-bg);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .trail-control-btn.is-slime-hot .slime-base {
-    border-color: var(--card-hover-border);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
   }
 
   .slime-blob {
@@ -279,10 +279,8 @@
     height: var(--slime-blob-h);
     margin: 0;
     border-radius: 45% 55% 52% 48% / 48% 46% 54% 52%;
-    background:
-      radial-gradient(circle at 32% 28%, rgba(148, 163, 184, 0.35), transparent 58%),
-      var(--card-bg);
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.55);
+    background: var(--card-bg);
+    border: 1.5px solid var(--btn-border);
     opacity: var(--slime-blob-opacity);
     transform: translate(-50%, -50%);
     pointer-events: none;
@@ -294,14 +292,23 @@
     width: var(--slime-lag-w);
     height: var(--slime-lag-h);
     opacity: calc(var(--slime-blob-opacity) * 0.85);
-    background:
-      radial-gradient(circle at 40% 35%, rgba(100, 116, 139, 0.22), transparent 60%),
-      var(--card-bg);
+    background: var(--card-bg);
+    border: 1.5px solid var(--btn-border);
+  }
+
+  /* Sharp gray pill rim above the filtered goo so the idle border never washes out */
+  .slime-rim {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 1.5px solid var(--btn-border);
+    pointer-events: none;
+    z-index: 1;
   }
 
   .slime-content {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     display: inline-flex;
     align-items: baseline;
     gap: 6px;
@@ -340,7 +347,6 @@
     }
 
     .trail-control-btn:hover .slime-base {
-      border-color: var(--card-hover-border);
       box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
     }
   }
