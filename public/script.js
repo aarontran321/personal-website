@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
       placeDotAt(link, true);
       setTimeout(() => {
         window.location.href = link.href;
-      }, 260);
+      }, 170);
     });
   });
 
@@ -201,12 +201,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // ==========================================================
+// PAGE PREFETCH — these are separate .html documents, so every
+// nav is a full load. Warm the destination the moment a link is
+// hovered (desktop) or first touched (mobile): that's typically
+// 100-300ms of head start before the click even resolves, and on
+// touch it overlaps the tap's own delay, so the next page is
+// usually already in cache by the time we navigate.
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const conn = navigator.connection;
+  if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ''))) return;
+
+  const prefetched = new Set();
+
+  function prefetch(link) {
+    const url = link.href;
+    if (!url || prefetched.has(url)) return;
+    if (link.target === '_blank' || link.origin !== window.location.origin) return;
+    if (url.split('#')[0] === window.location.href.split('#')[0]) return;
+    prefetched.add(url);
+    const tag = document.createElement('link');
+    tag.rel = 'prefetch';
+    tag.as = 'document';
+    tag.href = url;
+    document.head.appendChild(tag);
+  }
+
+  const links = document.querySelectorAll('a[href]');
+  links.forEach((link) => {
+    link.addEventListener('pointerenter', () => prefetch(link));
+    link.addEventListener('touchstart', () => prefetch(link), { passive: true });
+  });
+});
+
+// ==========================================================
 // UI AUDIO ENGINE (Smart Tab Navigation Fix)
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  const clickSound = new Audio('click.wav');
-  clickSound.preload = 'auto';
-  clickSound.volume = 0.4; 
+  // click.wav is ~200KB. Fetching it at DOMContentLoaded puts it in the
+  // same queue as the CSS/images the first paint actually needs, so hold it
+  // until the page has finished loading — long before anyone can click.
+  const clickSound = new Audio();
+  clickSound.preload = 'none';
+  clickSound.volume = 0.4;
+
+  const warmAudio = () => {
+    if (clickSound.src) return;
+    clickSound.src = 'click.wav';
+    clickSound.preload = 'auto';
+    clickSound.load();
+  };
+  if (document.readyState === 'complete') warmAudio();
+  else window.addEventListener('load', warmAudio, { once: true });
+  // whichever comes first: page fully loaded, or the user reaching for something
+  window.addEventListener('pointerdown', warmAudio, { once: true });
 
   const interactiveElements = document.querySelectorAll('a, button, .card, .food-card');
 
@@ -223,10 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (target === '_blank') return; 
 
       if (href && !href.startsWith('#') && href !== '#') {
-        e.preventDefault(); 
+        e.preventDefault();
         setTimeout(() => {
-          window.location.href = href; 
-        }, 120);
+          window.location.href = href;
+        }, 60);
       }
     });
   });
@@ -316,9 +364,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const videos = Array.from(document.querySelectorAll('.thumb-video'));
   if (videos.length === 0) return;
 
+  // Every clip is a couple of MB, so on a metered or slow connection the
+  // static .webp poster underneath is the whole experience — never fetch.
+  const conn = navigator.connection;
+  if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ''))) return;
+
   if (!('IntersectionObserver' in window)) {
     // no IO support: just play everything, no scroll-based gating
     videos.forEach(video => {
+      if (!video.src && video.dataset.src) video.src = video.dataset.src;
       video.play().catch(() => {});
       video.classList.add('playing');
     });

@@ -528,7 +528,9 @@ html, body {
   border-radius: 50%;
   background: #60a5fa;
   transform: translateY(-50%);
-  transition: left 0.25s ease;
+  /* kept short on purpose: script.js waits out this slide before it hands
+     over to the next page, so every extra ms here is dead time on a nav */
+  transition: left 0.16s ease;
   pointer-events: none;
 }
 
