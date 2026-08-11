@@ -1292,8 +1292,11 @@ section.projects {
     aspect-ratio: 16 / 9;
   }
 
-  .bento-visual {
-    min-height: 260px;
+  /* the desktop min-heights are taller than a narrow column is wide, which
+     forces a portrait box around landscape media and lets object-fit: cover
+     shave the sides off. Drop the floor and let aspect-ratio set the height. */
+  .bento-card .bento-visual {
+    min-height: 0;
   }
 }
 
@@ -1313,12 +1316,25 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--marrymap .bento-visual {
+  /* phone-shaped card keeps its portrait bezel; everything else follows the
+     shape of the media it holds so nothing is cropped at the sides */
+  .bento-card--retermina .bento-visual {
+    aspect-ratio: 16 / 10;
+  }
+
+  .bento-card--plotboard .bento-visual,
+  .bento-card--nutriai .bento-visual,
+  .bento-card--marrymap .bento-visual,
+  .bento-card--faceray .bento-visual {
     aspect-ratio: 16 / 9;
   }
 
-  .bento-visual {
-    min-height: 220px;
+  .bento-card--baam .bento-visual {
+    aspect-ratio: 4 / 5;
+  }
+
+  .bento-card .bento-visual {
+    min-height: 0;
   }
 
   .phone-frame {
