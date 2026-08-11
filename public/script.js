@@ -238,16 +238,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // UI AUDIO ENGINE (Smart Tab Navigation Fix)
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // click.wav is ~200KB. Fetching it at DOMContentLoaded puts it in the
-  // same queue as the CSS/images the first paint actually needs, so hold it
-  // until the page has finished loading — long before anyone can click.
+  // The source click.wav was 1.15s of stereo PCM (200KB) for a UI blip;
+  // click.mp3 is the same sound at 14KB. Still held until the page has
+  // finished loading so it never competes with the first paint.
   const clickSound = new Audio();
   clickSound.preload = 'none';
   clickSound.volume = 0.4;
 
   const warmAudio = () => {
     if (clickSound.src) return;
-    clickSound.src = 'click.wav';
+    clickSound.src = 'click.mp3';
     clickSound.preload = 'auto';
     clickSound.load();
   };
