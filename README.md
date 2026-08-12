@@ -11,3 +11,5 @@ npm run preview  # preview the build
 ```
 
 <!-- note 1 -->
+
+<!-- note 2 -->
