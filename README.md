@@ -9,3 +9,5 @@ npm run dev      # local dev server
 npm run build    # production build
 npm run preview  # preview the build
 ```
+
+<!-- note 1 -->
