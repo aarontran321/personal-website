@@ -23,3 +23,5 @@ npm run preview  # preview the build
 <!-- note 6 -->
 
 <!-- note 7 -->
+
+<!-- note 8 -->
