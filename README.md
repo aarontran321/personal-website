@@ -1,7 +1,6 @@
 # personal-website
 
-Aaron Tran's personal website. Built with Vite, React, Three.js, and Framer Motion.
-
+Aaron Tran's personal website. Built with Vite, React, and Three.js
 ## Dev
 
 ```bash
