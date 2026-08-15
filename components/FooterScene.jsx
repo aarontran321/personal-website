@@ -244,9 +244,17 @@ export default function FooterScene() {
       pointerRef.current.near = false;
     };
     window.addEventListener("pointermove", handleMove);
+    // Touch devices never fire pointermove without an active drag, so a tap
+    // alone would leave pointerRef.current.near stuck at its initial false
+    // and never reach the character. pointerdown fires on both touch and
+    // mouse, so reusing handleMove there brings the tapped spot in *before*
+    // the window "click" listener in CharacterRig checks pointer.near --
+    // that's what makes tap-to-walk and tap-the-character-to-cast work.
+    window.addEventListener("pointerdown", handleMove);
     document.documentElement.addEventListener("pointerleave", handleLeave);
     return () => {
       window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerdown", handleMove);
       document.documentElement.removeEventListener("pointerleave", handleLeave);
     };
   }, []);

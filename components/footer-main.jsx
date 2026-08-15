@@ -6,25 +6,15 @@
 
 const footer = document.querySelector(".site-footer");
 
-// The character exists to chase a cursor. A touch device has none, so the
-// scene idles in place while still costing react + three.js + a 4.7MB .glb
-// and a live WebGL loop -- on every page, since these are separate
-// documents. Skip it there (and on metered connections) entirely.
-//
-// `pointer: coarse` alone isn't reliable for this: iPads report `pointer:
-// fine` (trackpad/Pencil support) even when only ever touched, and their
-// width (768-1024px) clears the 767px cutoff too -- so both checks below
-// can pass right through a tablet that's actually touch-only. That let the
-// idle character sit stranded over the footer text/links with no cursor to
-// react to. `ontouchstart`/maxTouchPoints catches touch capability directly,
-// independent of what the pointer media features claim.
-const isTouchDevice =
-  "ontouchstart" in window || navigator.maxTouchPoints > 0;
+// Touch devices have no cursor to chase, but FooterScene.jsx now also reacts
+// to taps (see the pointerdown listener there) -- tap near the footer and
+// the character walks to that spot, tap on the character and it casts. So
+// touch/narrow viewports no longer need to skip the scene entirely; only
+// keep the skip for cases where running it is a genuinely bad idea:
+// reduced-motion (accessibility) and metered/slow connections (a 4.7MB .glb
+// isn't worth loading there).
 const conn = navigator.connection;
 const skipScene =
-  isTouchDevice ||
-  window.matchMedia("(pointer: coarse)").matches ||
-  window.matchMedia("(max-width: 767px)").matches ||
   window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
   (conn && (conn.saveData || /2g/.test(conn.effectiveType || "")));
 
