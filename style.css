@@ -1540,7 +1540,7 @@ section.projects {
        taller than the desktop row layout, so the old 65.7px reserve left
        far less clearance than .footer-scene's own height -- this scales
        both together so the footer doesn't read as squished. */
-    padding: 21.6px 16px clamp(150px, 40vw, 210px) clamp(12.6px, 3.6vw, 16px);
+    padding: 18px 16px clamp(120px, 32vw, 170px) clamp(12.6px, 3.6vw, 16px);
     min-height: 0;
   }
 
@@ -1554,8 +1554,12 @@ section.projects {
     align-items: flex-start;
   }
 
+  /* Bigger than the reserved bottom padding above by design at most mobile
+     widths -- the character's runway is meant to read as roomier here, and
+     the z-index layering in FooterScene.jsx already handles it drawing in
+     front of the text on the widths where the two now overlap. */
   .footer-scene {
-    height: clamp(110px, 30vw, 160px);
+    height: clamp(130px, 34vw, 185px);
   }
 }
 
