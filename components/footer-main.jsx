@@ -10,8 +10,19 @@ const footer = document.querySelector(".site-footer");
 // scene idles in place while still costing react + three.js + a 4.7MB .glb
 // and a live WebGL loop -- on every page, since these are separate
 // documents. Skip it there (and on metered connections) entirely.
+//
+// `pointer: coarse` alone isn't reliable for this: iPads report `pointer:
+// fine` (trackpad/Pencil support) even when only ever touched, and their
+// width (768-1024px) clears the 767px cutoff too -- so both checks below
+// can pass right through a tablet that's actually touch-only. That let the
+// idle character sit stranded over the footer text/links with no cursor to
+// react to. `ontouchstart`/maxTouchPoints catches touch capability directly,
+// independent of what the pointer media features claim.
+const isTouchDevice =
+  "ontouchstart" in window || navigator.maxTouchPoints > 0;
 const conn = navigator.connection;
 const skipScene =
+  isTouchDevice ||
   window.matchMedia("(pointer: coarse)").matches ||
   window.matchMedia("(max-width: 767px)").matches ||
   window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
