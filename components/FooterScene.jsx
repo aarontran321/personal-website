@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 
-import { ChibiYasuo } from "./models.jsx";
+import { ChibiYasuo, CHARACTER_HEIGHT, SCALE_MULTIPLIER } from "./models.jsx";
 
 /**
  * <FooterScene />
@@ -44,6 +44,22 @@ const EDGE_MARGIN = 0.8; // world units the character keeps away from the canvas
 const TURN_DAMP = 6; // rotation still eases smoothly — only the position march is constant-speed
 const MAX_FRAME_DT = 1 / 30; // clamp useFrame's delta so a background-tab hiccup can't be misread as "arrived" in one giant step
 const FACE_ANGLE = Math.PI / 2; // Y rotation when running right (model faces +Z at rest)
+// Screen px either side of the character's projected X counted as part of
+// its body for the text-overlap check below — roughly the model's on-screen
+// footprint, a bit narrower than HOVER_RADIUS_PX since that one is padded
+// for easy clicking rather than tracking actual silhouette width.
+const CHAR_OVERLAP_HALF_WIDTH_PX = 45;
+// z-index the .footer-scene strip is promoted to while the character
+// overlaps the text above it, so it draws in front instead of tucked behind
+// (see the overlap check in CharacterRig's useFrame). Must clear
+// .footer-inner's z-index: 1.
+const ELEVATED_Z_INDEX = "2";
+// The model's actual rendered height in world units (see models.jsx's
+// staticBoundingBox normalization) -- used below to find the character's
+// own on-screen footprint rather than treating the whole (mostly
+// transparent) canvas strip as its bounds, which would overlap the text
+// almost permanently since the strip runs right up to it.
+const CHAR_WORLD_HEIGHT = CHARACTER_HEIGHT * SCALE_MULTIPLIER;
 const REST_X_FRACTION = 0; // spawn spot before the cursor has ever entered the footer (fraction of canvas width, 0 = center)
 const CAM_Y = 1.0;
 const CAM_Z = 6.5;
@@ -117,6 +133,13 @@ function CharacterRig({ pointerRef, wrapperRef }) {
   // Fired by the taunt clip's mixer when it finishes; the next frame
   // promotes straight back to "run" if the cursor is still nearby.
   const handleInteractFinished = useCallback(() => setMode("idle"), []);
+
+  // The footer text block (.footer-top), looked up lazily once and cached —
+  // it's a static element outside React's tree here, so there's nothing to
+  // re-query it for. Read in the overlap check below so the character can
+  // draw in front of it while crossing.
+  const textElRef = useRef(null);
+  const elevatedRef = useRef(false);
 
   useFrame((_, delta) => {
     const g = group.current;
@@ -192,6 +215,37 @@ function CharacterRig({ pointerRef, wrapperRef }) {
 
     wrapper.style.pointerEvents = hovering ? "auto" : "none";
     wrapper.style.cursor = hovering ? "pointer" : "";
+
+    // Draw the character in front of the footer text whenever it's actually
+    // crossing underneath it, instead of always sitting behind it. Normally
+    // .footer-scene's runway sits below the text with clearance to spare,
+    // but on cramped layouts (or a character standing near the edges) the
+    // two can overlap — layering it on top there reads as "walking across
+    // the text" instead of "vanishing behind it."
+    if (!textElRef.current) {
+      textElRef.current = wrapper.closest(".site-footer")?.querySelector(".footer-top") ?? null;
+    }
+    const textEl = textElRef.current;
+    if (textEl) {
+      const textRect = textEl.getBoundingClientRect();
+      // The character's own on-screen footprint, not the whole canvas
+      // strip — the strip is mostly transparent and often grazes the text's
+      // bottom edge even while the model itself is well clear of it, which
+      // would otherwise pin this elevated almost permanently.
+      const pxPerWorldUnit = rect.height / viewport.height;
+      const charScreenBottom = rect.bottom;
+      const charScreenTop = charScreenBottom - CHAR_WORLD_HEIGHT * pxPerWorldUnit;
+      const overlapping =
+        charScreenBottom > textRect.top &&
+        charScreenTop < textRect.bottom &&
+        charScreenX + CHAR_OVERLAP_HALF_WIDTH_PX > textRect.left &&
+        charScreenX - CHAR_OVERLAP_HALF_WIDTH_PX < textRect.right;
+      if (overlapping !== elevatedRef.current) {
+        elevatedRef.current = overlapping;
+        const strip = wrapper.parentElement;
+        if (strip) strip.style.zIndex = overlapping ? ELEVATED_Z_INDEX : "";
+      }
+    }
   });
 
   return (

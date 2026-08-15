@@ -8,7 +8,7 @@ import chibiYasuoUrl from "./chibi_yasuo.glb?url";
 // to CHARACTER_HEIGHT world units with its feet sitting exactly on the
 // group's origin (y = 0).
 export const CHARACTER_HEIGHT = 1.8;
-const SCALE_MULTIPLIER = 1.45;
+export const SCALE_MULTIPLIER = 1.45;
 
 // Every state (idle/run/cast) now lives as a clip on this one skinned mesh,
 // so there's exactly one scale and one ground offset for the whole
