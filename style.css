@@ -1383,13 +1383,18 @@ section.projects {
 
 /* Transparent canvas strip pinned to the footer's bottom edge, behind the
    text layer. Populated by components/footer-main.jsx; the character only
-   ever moves horizontally along this strip. */
+   ever moves horizontally along this strip. Height scales with viewport
+   width (like the rest of .footer-inner's clamp()-based spacing above) so
+   the character grows/shrinks with the page instead of staying pinned to
+   one fixed pixel size at every resolution -- FooterScene.jsx's
+   SyncOrthoZoom keeps the camera's world-space framing locked to this
+   height as it changes. */
 .footer-scene {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 135px;
+  height: clamp(100px, 9.6vw, 170px);
   z-index: 0;
   pointer-events: none;
 }

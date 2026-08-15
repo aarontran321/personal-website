@@ -51,10 +51,31 @@ const CAM_Z = 6.5;
 // anything away from dead-center of the frustum, which is exactly the edge
 // distortion this rig was hitting as the character ran toward the sides.
 // Orthographic projection has no vanishing point, so proportions stay
-// identical across the full width of the strip. Zoom is picked against the
-// footer canvas's fixed 150px height (see .footer-scene in style.css) to
-// land on roughly the same framing the old fov/distance pairing produced.
-const ORTHO_ZOOM = 36;
+// identical across the full width of the strip.
+//
+// World units of vertical space the canvas should always show, independent
+// of the canvas's actual on-screen pixel height. zoom = canvas height (px) /
+// this constant, recomputed live in <SyncOrthoZoom> below. A *fixed* zoom
+// number (the old approach) only looks right at the one canvas height it was
+// tuned against -- .footer-scene's height now scales with viewport width
+// (see style.css), so a fixed zoom made the character shrink to a smaller
+// and smaller fraction of that strip as the strip grew, instead of scaling
+// with it the way everything else in the footer does.
+const WORLD_VIEW_HEIGHT = 3.75;
+
+// Keeps the orthographic camera's zoom locked to WORLD_VIEW_HEIGHT of
+// vertical world space no matter how tall the canvas itself renders at --
+// see the WORLD_VIEW_HEIGHT comment above. R3F's default camera setup only
+// recomputes left/right/top/bottom from `size` on resize; it never touches
+// `zoom`, so this has to be done by hand.
+function SyncOrthoZoom() {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    camera.zoom = size.height / WORLD_VIEW_HEIGHT;
+    camera.updateProjectionMatrix();
+  }, [camera, size.height]);
+  return null;
+}
 
 function CharacterRig({ pointerRef, wrapperRef }) {
   const group = useRef();
@@ -240,8 +261,9 @@ export default function FooterScene() {
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 2]}
         orthographic
-        camera={{ position: [0, CAM_Y, CAM_Z], zoom: ORTHO_ZOOM, near: 0.1, far: 100 }}
+        camera={{ position: [0, CAM_Y, CAM_Z], near: 0.1, far: 100 }}
       >
+        <SyncOrthoZoom />
         <ambientLight intensity={1.1} />
         <directionalLight position={[3, 6, 4]} intensity={1.6} />
         <Suspense fallback={null}>
