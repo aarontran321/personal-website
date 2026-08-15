@@ -1535,7 +1535,12 @@ section.projects {
 
 @media (max-width: 767px) {
   .footer-inner {
-    padding: 21.6px 18px 65.7px clamp(12.6px, 3.6vw, 18px);
+    /* Bottom padding reserves the runway .footer-scene's character walks
+       in. The stacked column layout below makes .footer-top itself much
+       taller than the desktop row layout, so the old 65.7px reserve left
+       far less clearance than .footer-scene's own height -- this scales
+       both together so the footer doesn't read as squished. */
+    padding: 21.6px 16px clamp(150px, 40vw, 210px) clamp(12.6px, 3.6vw, 16px);
     min-height: 0;
   }
 
@@ -1547,6 +1552,10 @@ section.projects {
 
   .footer-actions {
     align-items: flex-start;
+  }
+
+  .footer-scene {
+    height: clamp(110px, 30vw, 160px);
   }
 }
 
