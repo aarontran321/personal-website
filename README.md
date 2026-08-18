@@ -1,6 +1,6 @@
 # personal-website
 
-Aaron Tran's personal website. Built with Vite, React, and Three.js. Deployed on Vercel
+Aaron Tran's personal website. Built with Vite, React, and Three.js. Deployed on Vercel.
 ## Dev
 
 ```bash
