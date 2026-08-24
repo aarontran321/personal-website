@@ -172,14 +172,91 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY }) {
   );
 }
 
-// Full-screen viewer opened by clicking a card. Renders the current photo
-// edge-to-edge in a dark glass frame with prev/next arrows either side, both
-// vertically centered on the frame via the shared grid row (see
-// .gallery-lightbox in style.css) so they stay aligned regardless of the
-// photo's aspect ratio.
-function Lightbox({ items, index, onClose, onNav }) {
-  const item = items[index];
+// How far (in px) the peeking prev/next photos sit from dead center, as a
+// fraction of the main frame's own width — wide enough that they clear the
+// main frame at its peek scale (see PEEK_SCALE) without touching it.
+const PEEK_SLOT_RATIO = 0.85;
+const PEEK_SCALE = 0.62;
+const PEEK_OPACITY = 0.42;
+const STAGE_TRANSITION = { duration: 0.46, ease: [0.22, 1, 0.36, 1] };
 
+// Wraps an index into [0, length).
+function wrapIndex(i, length) {
+  return ((i % length) + length) % length;
+}
+
+function useViewportSize() {
+  const [size, setSize] = useState(() => ({
+    w: typeof window !== "undefined" ? window.innerWidth : 1200,
+    h: typeof window !== "undefined" ? window.innerHeight : 800,
+  }));
+  useEffect(() => {
+    function onResize() {
+      setSize({ w: window.innerWidth, h: window.innerHeight });
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return size;
+}
+
+// One photo within the lightbox stage — prev/main/next all render this same
+// component so the transform (position + scale + opacity) is the only thing
+// that changes as a photo's role changes, which is what makes the role
+// change read as one photo smoothly growing/shrinking and sliding into
+// place rather than a swap.
+function LightboxSlide({ item, role, dir, slot, onSelect }) {
+  const variants = {
+    main: { x: 0, scale: 1, opacity: 1, zIndex: 3 },
+    prev: { x: -slot, scale: PEEK_SCALE, opacity: PEEK_OPACITY, zIndex: 2 },
+    next: { x: slot, scale: PEEK_SCALE, opacity: PEEK_OPACITY, zIndex: 2 },
+    enterRight: { x: slot * 1.9, scale: PEEK_SCALE * 0.85, opacity: 0, zIndex: 1 },
+    enterLeft: { x: -slot * 1.9, scale: PEEK_SCALE * 0.85, opacity: 0, zIndex: 1 },
+    exitRight: { x: slot * 1.9, scale: PEEK_SCALE * 0.85, opacity: 0, zIndex: 1 },
+    exitLeft: { x: -slot * 1.9, scale: PEEK_SCALE * 0.85, opacity: 0, zIndex: 1 },
+  };
+
+  return (
+    <motion.figure
+      className={`gallery-lightbox-slide gallery-lightbox-slide-${role}`}
+      variants={variants}
+      initial={dir === 1 ? "enterRight" : dir === -1 ? "enterLeft" : false}
+      animate={role}
+      exit={dir === 1 ? "exitLeft" : "exitRight"}
+      transition={STAGE_TRANSITION}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (role !== "main") onSelect();
+      }}
+    >
+      <div className="gallery-lightbox-image-wrap">
+        <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
+      </div>
+      <AnimatePresence>
+        {role === "main" && (
+          <motion.figcaption
+            className="gallery-lightbox-caption"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.22, delay: 0.14 }}
+          >
+            <span className="gallery-lightbox-title">{item.title}</span>
+          </motion.figcaption>
+        )}
+      </AnimatePresence>
+    </motion.figure>
+  );
+}
+
+// Full-screen viewer opened by clicking a card. Modeled on Instagram's story
+// viewer: the current photo sits centered and full-size, the previous/next
+// photos peek in from either side at reduced scale, and navigating smoothly
+// grows/shrinks and slides photos between those roles rather than cutting.
+// All three (plus whichever photo is entering/exiting) are mounted at once
+// and keyed by photo id — see LightboxSlide — so a photo whose role changes
+// keeps its identity across the transition instead of being swapped out.
+function Lightbox({ items, index, dir, onClose, onNav }) {
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === "Escape") onClose();
@@ -189,6 +266,22 @@ function Lightbox({ items, index, onClose, onNav }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, onNav]);
+
+  const { w: vw, h: vh } = useViewportSize();
+  // Sized as a fraction of viewport width (rather than a flat px minimum)
+  // so the arrows — anchored just outside the stage — always have room
+  // beside it, even on narrow phones.
+  const frameW = clamp(Math.round(vw * 0.58), 220, 520);
+  const frameH = clamp(Math.round(vh * 0.62), 380, 640);
+  const slot = frameW * PEEK_SLOT_RATIO;
+
+  const prevIndex = wrapIndex(index - 1, items.length);
+  const nextIndex = wrapIndex(index + 1, items.length);
+  const windowSlides = [
+    { item: items[prevIndex], role: "prev" },
+    { item: items[index], role: "main" },
+    { item: items[nextIndex], role: "next" },
+  ];
 
   return (
     <motion.div
@@ -203,53 +296,44 @@ function Lightbox({ items, index, onClose, onNav }) {
         &times;
       </button>
 
-      <button
-        className="gallery-lightbox-arrow gallery-lightbox-arrow-prev"
-        onClick={(e) => {
-          e.stopPropagation();
-          onNav(-1);
-        }}
-        aria-label="Previous photo"
+      <div
+        className="gallery-lightbox-stage"
+        style={{ width: frameW, height: frameH }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="15 6 9 12 15 18" />
-        </svg>
-      </button>
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.figure
-          key={item.id}
-          className="gallery-lightbox-frame"
-          onClick={(e) => e.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.97 }}
-          transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+        <button
+          className="gallery-lightbox-arrow gallery-lightbox-arrow-prev"
+          onClick={() => onNav(-1)}
+          aria-label="Previous photo"
         >
-          <div className="gallery-lightbox-image-wrap">
-            <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
-          </div>
-          <figcaption className="gallery-lightbox-caption">
-            <span className="gallery-lightbox-count">
-              {String(index + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}
-            </span>
-            <span className="gallery-lightbox-title">{item.title}</span>
-          </figcaption>
-        </motion.figure>
-      </AnimatePresence>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="15 6 9 12 15 18" />
+          </svg>
+        </button>
 
-      <button
-        className="gallery-lightbox-arrow gallery-lightbox-arrow-next"
-        onClick={(e) => {
-          e.stopPropagation();
-          onNav(1);
-        }}
-        aria-label="Next photo"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="9 6 15 12 9 18" />
-        </svg>
-      </button>
+        <AnimatePresence initial={false}>
+          {windowSlides.map(({ item, role }) => (
+            <LightboxSlide
+              key={item.id}
+              item={item}
+              role={role}
+              dir={dir}
+              slot={slot}
+              onSelect={() => onNav(role === "prev" ? -1 : 1)}
+            />
+          ))}
+        </AnimatePresence>
+
+        <button
+          className="gallery-lightbox-arrow gallery-lightbox-arrow-next"
+          onClick={() => onNav(1)}
+          aria-label="Next photo"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
+        </button>
+      </div>
     </motion.div>
   );
 }
@@ -312,10 +396,18 @@ export default function InfiniteGallery() {
   const dragSuppressRef = useRef(false);
 
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  // Which way the last navigation moved (1 = next, -1 = prev, 0 = the
+  // lightbox was just opened). LightboxSlide reads this to decide which
+  // direction a newly-mounted photo should slide in from — see Lightbox.
+  const [lightboxDir, setLightboxDir] = useState(0);
 
-  const openLightbox = (idx) => setLightboxIndex(idx);
+  const openLightbox = (idx) => {
+    setLightboxDir(0);
+    setLightboxIndex(idx);
+  };
   const closeLightbox = () => setLightboxIndex(null);
   const navLightbox = (dir) => {
+    setLightboxDir(dir);
     setLightboxIndex((i) => (i === null ? i : (i + dir + GALLERY_ITEMS.length) % GALLERY_ITEMS.length));
   };
 
@@ -516,6 +608,7 @@ export default function InfiniteGallery() {
           <Lightbox
             items={items}
             index={lightboxIndex}
+            dir={lightboxDir}
             onClose={closeLightbox}
             onNav={navLightbox}
           />
