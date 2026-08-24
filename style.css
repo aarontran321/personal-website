@@ -1750,6 +1750,24 @@ section.gallery-section {
   cursor: default;
 }
 
+/* Drag target for the swipe gesture (see the `drag="x"` motion.div in
+   InfiniteGallery.jsx) — sized to match the stage exactly so the slides
+   inside, which position themselves at left/top:50% of their nearest
+   positioned ancestor, land in the same place as they did before this
+   wrapper existed (a transform, which framer-motion's drag applies, makes
+   an element a new containing block for absolutely-positioned children,
+   which is why this needs inset:0 rather than being left unstyled). */
+.gallery-lightbox-track {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.gallery-lightbox-track:active {
+  cursor: grabbing;
+}
+
 /* No fixed box + object-fit here on purpose: the image is left to size
    itself intrinsically (capped by maxW/maxH set inline from JS), so a
    photo's own aspect ratio is exactly its rendered shape — no letterboxing,

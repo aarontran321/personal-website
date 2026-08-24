@@ -261,6 +261,12 @@ function LightboxSlide({ item, role, dir, slot, maxW, maxH, onSelect }) {
   );
 }
 
+// Swipe thresholds for the draggable track below: a swipe commits to
+// navigating once it clears either enough distance or enough speed, so a
+// short-but-fast flick and a slow-but-long drag both register naturally.
+const SWIPE_OFFSET_THRESHOLD = 70;
+const SWIPE_VELOCITY_THRESHOLD = 450;
+
 // Full-screen viewer opened by clicking a card. Modeled on Instagram's story
 // viewer: the current photo sits centered and full-size, the previous/next
 // photos peek in from either side at reduced scale, and navigating smoothly
@@ -268,6 +274,10 @@ function LightboxSlide({ item, role, dir, slot, maxW, maxH, onSelect }) {
 // All three (plus whichever photo is entering/exiting) are mounted at once
 // and keyed by photo id — see LightboxSlide — so a photo whose role changes
 // keeps its identity across the transition instead of being swapped out.
+// The whole slide group also drags as one with the pointer/finger (see
+// gallery-lightbox-track below); releasing past either threshold commits to
+// onNav, and the role-based slide animation above takes it from there —
+// otherwise the track's own drag constraints spring it back to center.
 function Lightbox({ items, index, dir, onClose, onNav }) {
   useEffect(() => {
     function handleKeyDown(e) {
@@ -297,6 +307,14 @@ function Lightbox({ items, index, dir, onClose, onNav }) {
     { item: items[nextIndex], role: "next" },
   ];
 
+  function handleDragEnd(_e, info) {
+    if (info.offset.x <= -SWIPE_OFFSET_THRESHOLD || info.velocity.x <= -SWIPE_VELOCITY_THRESHOLD) {
+      onNav(1);
+    } else if (info.offset.x >= SWIPE_OFFSET_THRESHOLD || info.velocity.x >= SWIPE_VELOCITY_THRESHOLD) {
+      onNav(-1);
+    }
+  }
+
   return (
     <motion.div
       className="gallery-lightbox"
@@ -325,20 +343,28 @@ function Lightbox({ items, index, dir, onClose, onNav }) {
           </svg>
         </button>
 
-        <AnimatePresence initial={false}>
-          {windowSlides.map(({ item, role }) => (
-            <LightboxSlide
-              key={item.id}
-              item={item}
-              role={role}
-              dir={dir}
-              slot={slot}
-              maxW={frameW}
-              maxH={frameH}
-              onSelect={() => onNav(role === "prev" ? -1 : 1)}
-            />
-          ))}
-        </AnimatePresence>
+        <motion.div
+          className="gallery-lightbox-track"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={1}
+          onDragEnd={handleDragEnd}
+        >
+          <AnimatePresence initial={false}>
+            {windowSlides.map(({ item, role }) => (
+              <LightboxSlide
+                key={item.id}
+                item={item}
+                role={role}
+                dir={dir}
+                slot={slot}
+                maxW={frameW}
+                maxH={frameH}
+                onSelect={() => onNav(role === "prev" ? -1 : 1)}
+              />
+            ))}
+          </AnimatePresence>
+        </motion.div>
 
         <button
           className="gallery-lightbox-arrow gallery-lightbox-arrow-next"
