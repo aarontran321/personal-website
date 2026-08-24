@@ -1799,14 +1799,23 @@ section.gallery-section {
   justify-content: center;
   width: 44px;
   height: 44px;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
   color: #f8fafc;
-  font-size: 1.6rem;
-  line-height: 1;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
+}
+
+/* SVG chevrons instead of the ‹ › glyphs — those characters aren't drawn
+   centered within their own em box in most fonts, so flex-centering the
+   button never actually centered the visible mark. An SVG path is centered
+   on its viewBox, so this is centered for real. */
+.gallery-lightbox-arrow svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .gallery-lightbox-arrow:hover {
@@ -1854,7 +1863,11 @@ section.gallery-section {
   .gallery-lightbox-arrow {
     width: 36px;
     height: 36px;
-    font-size: 1.3rem;
+  }
+
+  .gallery-lightbox-arrow svg {
+    width: 16px;
+    height: 16px;
   }
 
   .gallery-lightbox-frame {
