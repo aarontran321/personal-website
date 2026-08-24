@@ -175,10 +175,14 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY }) {
 // How far (in px) the peeking prev/next photos sit from dead center, as a
 // fraction of the main frame's own width — wide enough that they clear the
 // main frame at its peek scale (see PEEK_SCALE) without touching it.
-const PEEK_SLOT_RATIO = 0.85;
-const PEEK_SCALE = 0.62;
-const PEEK_OPACITY = 0.42;
+const PEEK_SLOT_RATIO = 0.82;
+const PEEK_SCALE = 0.46;
+const PEEK_OPACITY = 0.4;
 const STAGE_TRANSITION = { duration: 0.46, ease: [0.22, 1, 0.36, 1] };
+// Centers a photo on its own transform origin (no wrapper element needed):
+// framer-motion builds `generated` from the x/scale motion values below, this
+// just prepends the static centering offset ahead of it.
+const centerTransform = (_latest, generated) => `translate(-50%, -50%) ${generated}`;
 
 // Wraps an index into [0, length).
 function wrapIndex(i, length) {
@@ -204,8 +208,11 @@ function useViewportSize() {
 // component so the transform (position + scale + opacity) is the only thing
 // that changes as a photo's role changes, which is what makes the role
 // change read as one photo smoothly growing/shrinking and sliding into
-// place rather than a swap.
-function LightboxSlide({ item, role, dir, slot, onSelect }) {
+// place rather than a swap. The image itself is sized intrinsically (capped
+// by maxW/maxH, never stretched to fill a fixed box) so there's no
+// letterboxing — every photo, whatever its aspect ratio, shows edge to edge
+// with nothing but its own drop shadow around it.
+function LightboxSlide({ item, role, dir, slot, maxW, maxH, onSelect }) {
   const variants = {
     main: { x: 0, scale: 1, opacity: 1, zIndex: 3 },
     prev: { x: -slot, scale: PEEK_SCALE, opacity: PEEK_OPACITY, zIndex: 2 },
@@ -224,14 +231,19 @@ function LightboxSlide({ item, role, dir, slot, onSelect }) {
       animate={role}
       exit={dir === 1 ? "exitLeft" : "exitRight"}
       transition={STAGE_TRANSITION}
+      transformTemplate={centerTransform}
       onClick={(e) => {
         e.stopPropagation();
         if (role !== "main") onSelect();
       }}
     >
-      <div className="gallery-lightbox-image-wrap">
-        <img src={`/images/gallery/${item.src}`} alt={item.title} draggable={false} />
-      </div>
+      <img
+        className="gallery-lightbox-photo"
+        src={`/images/gallery/${item.src}`}
+        alt={item.title}
+        draggable={false}
+        style={{ maxWidth: maxW, maxHeight: maxH }}
+      />
       <AnimatePresence>
         {role === "main" && (
           <motion.figcaption
@@ -268,11 +280,13 @@ function Lightbox({ items, index, dir, onClose, onNav }) {
   }, [onClose, onNav]);
 
   const { w: vw, h: vh } = useViewportSize();
-  // Sized as a fraction of viewport width (rather than a flat px minimum)
-  // so the arrows — anchored just outside the stage — always have room
-  // beside it, even on narrow phones.
-  const frameW = clamp(Math.round(vw * 0.58), 220, 520);
-  const frameH = clamp(Math.round(vh * 0.62), 380, 640);
+  // Sized as a fraction of viewport (rather than a flat px minimum) so the
+  // arrows — anchored just outside the stage — always have room beside it,
+  // even on narrow phones. These are caps on the main photo's own size, not
+  // a box it gets fitted into, so different aspect ratios just render at
+  // different actual widths/heights up to these bounds.
+  const frameW = clamp(Math.round(vw * 0.64), 240, 640);
+  const frameH = clamp(Math.round(vh * 0.76), 360, 760);
   const slot = frameW * PEEK_SLOT_RATIO;
 
   const prevIndex = wrapIndex(index - 1, items.length);
@@ -319,6 +333,8 @@ function Lightbox({ items, index, dir, onClose, onNav }) {
               role={role}
               dir={dir}
               slot={slot}
+              maxW={frameW}
+              maxH={frameH}
               onSelect={() => onNav(role === "prev" ? -1 : 1)}
             />
           ))}

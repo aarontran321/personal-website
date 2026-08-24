@@ -1750,13 +1750,20 @@ section.gallery-section {
   cursor: default;
 }
 
+/* No fixed box + object-fit here on purpose: the image is left to size
+   itself intrinsically (capped by maxW/maxH set inline from JS), so a
+   photo's own aspect ratio is exactly its rendered shape — no letterboxing,
+   no filled background showing through around it. Centering is handled by
+   transformTemplate in InfiniteGallery.jsx (translate(-50%, -50%) ahead of
+   the animated x/scale), so this only needs left/top:50% here. */
 .gallery-lightbox-slide {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
   margin: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   will-change: transform, opacity;
 }
 
@@ -1765,37 +1772,21 @@ section.gallery-section {
   cursor: pointer;
 }
 
-.gallery-lightbox-image-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-}
-
-.gallery-lightbox-slide img {
+.gallery-lightbox-photo {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
   width: auto;
   height: auto;
-  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
   user-select: none;
   -webkit-user-drag: none;
 }
 
+/* Sits in normal flow below the photo (not overlaid on it), so it only
+   shows once a photo has settled into the main slot and never needs a
+   background scrim to stay legible. */
 .gallery-lightbox-caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16px 20px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  margin-top: 14px;
   pointer-events: none;
 }
 
@@ -1804,7 +1795,7 @@ section.gallery-section {
   font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: rgba(248, 250, 252, 0.92);
+  color: rgba(248, 250, 252, 0.85);
 }
 
 .gallery-lightbox-arrow {
