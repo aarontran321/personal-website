@@ -50,6 +50,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-warp" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Size</span><span class="trail-btn-value">Medium</span>
       </span>
@@ -60,6 +61,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-warp" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Shape</span><span class="trail-btn-value">Rounded</span>
       </span>
@@ -70,6 +72,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-warp" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Density</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -80,6 +83,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-warp" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Trail</span><span class="trail-btn-value">Normal</span>
       </span>
@@ -90,6 +94,7 @@
         <span class="slime-blob"></span>
         <span class="slime-blob slime-blob--lag"></span>
       </span>
+      <span class="slime-warp" aria-hidden="true"></span>
       <span class="slime-content">
         <span class="trail-btn-label">Tint</span><span class="trail-btn-value">Color</span>
       </span>
@@ -304,6 +309,28 @@
     border: 1.5px solid var(--btn-border);
     pointer-events: none;
     will-change: transform, width, height, opacity;
+  }
+
+  /* Warp layer: sits above the goo (un-filtered, so it stays crisp) and
+     below the label text. On click it bites two soft, irregular notches
+     out of the pill's left and right ends — painted in the page's own
+     background color so they read as the button's own edge caving in,
+     not as separate shapes on top of it. */
+  .slime-warp {
+    position: absolute;
+    inset: calc(var(--slime-pad) * -1);
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .slime-warp-dent {
+    position: absolute;
+    margin: 0;
+    background: var(--bg-color);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    will-change: width, height, opacity;
   }
 
   .slime-content {
@@ -824,9 +851,19 @@
         // point, thick near the center and thinning as they travel —
         // several staggered "waves" with per-blob angle/size/timing jitter
         // so it reads as an uneven, crashing-wave ripple rather than a
-        // clean concentric circle.
+        // clean concentric circle. Paired with a warp pass on the pill's
+        // own left/right ends, which cave inward and settle back out.
+        // Slowed and desynced on purpose so the whole thing reads as one
+        // deliberate wave passing through, not a flicker.
         // ---------------------------------------------------------------
-        let rippleCount = 0;
+        let fxCount = 0;
+
+        function releaseFxSlot(wasHot) {
+          fxCount--;
+          if (fxCount <= 0 && !wasHot && !active) {
+            btn.classList.remove('is-slime-hot');
+          }
+        }
 
         function spawnRipple(e) {
           const goo = btn.querySelector('.slime-goo');
@@ -844,8 +881,8 @@
           const BLOBS_PER_WAVE = 5;
 
           for (let wave = 0; wave < WAVES; wave++) {
-            const waveDelay = wave * 85;
-            const waveRadius = 24 + wave * 20;
+            const waveDelay = wave * 170;
+            const waveRadius = 24 + wave * 24;
             const waveStartSize = 34 - wave * 5;
 
             for (let i = 0; i < BLOBS_PER_WAVE; i++) {
@@ -854,8 +891,8 @@
               const radius = waveRadius + (Math.random() - 0.5) * 16;
               const startSize = Math.max(10, waveStartSize + (Math.random() - 0.5) * 8);
               const endSize = Math.max(5, startSize * (0.3 + Math.random() * 0.2));
-              const delay = waveDelay + Math.random() * 70;
-              const duration = 460 + Math.random() * 240;
+              const delay = waveDelay + Math.random() * 130;
+              const duration = 950 + Math.random() * 500;
 
               const dx = Math.cos(angle) * radius;
               const dy = Math.sin(angle) * radius;
@@ -873,7 +910,7 @@
               blob.style.top = originY + 'px';
               goo.appendChild(blob);
 
-              rippleCount++;
+              fxCount++;
               const anim = blob.animate([
                 {
                   transform: 'translate(-50%, -50%) translate(0px, 0px)',
@@ -886,7 +923,7 @@
                   width: (startSize * 0.72) + 'px',
                   height: (startSize * 0.72) + 'px',
                   opacity: 0.85,
-                  offset: 0.3,
+                  offset: 0.22,
                 },
                 {
                   transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px)`,
@@ -897,19 +934,71 @@
               ], {
                 duration,
                 delay,
-                easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
                 fill: 'forwards',
               });
 
               anim.addEventListener('finish', () => {
                 blob.remove();
-                rippleCount--;
-                if (rippleCount <= 0 && !wasHot && !active) {
-                  btn.classList.remove('is-slime-hot');
-                }
+                releaseFxSlot(wasHot);
               });
             }
           }
+
+          spawnWarp(rect, pad, wasHot);
+        }
+
+        // Two irregular notches bitten out of the pill's own left and right
+        // ends, painted in the page background so they read as the button's
+        // edge caving in under the impact rather than a shape on top of it.
+        // Depth, height, offset and timing are all re-rolled per click so
+        // no two ripples warp the ends the same way.
+        function spawnWarp(rect, pad, wasHot) {
+          const warp = btn.querySelector('.slime-warp');
+          if (!warp) return;
+
+          const midY = pad + rect.height / 2;
+          const edges = [
+            { x: pad, dir: 1 },
+            { x: pad + rect.width, dir: -1 },
+          ];
+
+          edges.forEach(({ x, dir }) => {
+            const depth = 10 + Math.random() * 16;
+            const peakW = depth * 2.2;
+            const peakH = rect.height * (0.5 + Math.random() * 0.4);
+            const yJitter = (Math.random() - 0.5) * rect.height * 0.3;
+            const anchorX = x + dir * peakW * 0.28;
+            const startDelay = 60 + Math.random() * 160;
+            const duration = 1050 + Math.random() * 350;
+
+            const dent = document.createElement('span');
+            dent.className = 'slime-warp-dent';
+            const r1 = 45 + Math.random() * 25;
+            const r2 = 45 + Math.random() * 25;
+            dent.style.borderRadius = `${r1}% ${100 - r1}% ${100 - r1}% ${r1}% / ${r2}% ${r2}% ${100 - r2}% ${100 - r2}%`;
+            dent.style.left = anchorX + 'px';
+            dent.style.top = (midY + yJitter) + 'px';
+            warp.appendChild(dent);
+
+            fxCount++;
+            const anim = dent.animate([
+              { width: '0px', height: '0px', opacity: 0 },
+              { width: (peakW * 0.85) + 'px', height: (peakH * 0.85) + 'px', opacity: 1, offset: 0.4 },
+              { width: peakW + 'px', height: peakH + 'px', opacity: 1, offset: 0.6 },
+              { width: '0px', height: '0px', opacity: 0 },
+            ], {
+              duration,
+              delay: startDelay,
+              easing: 'cubic-bezier(0.45, 0, 0.2, 1)',
+              fill: 'forwards',
+            });
+
+            anim.addEventListener('finish', () => {
+              dent.remove();
+              releaseFxSlot(wasHot);
+            });
+          });
         }
 
         btn.addEventListener('click', spawnRipple);
