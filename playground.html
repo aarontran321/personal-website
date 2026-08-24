@@ -293,6 +293,19 @@
     border: 1.5px solid var(--btn-border);
   }
 
+  /* Click ripple: transient blobs spawned at the click point that travel
+     outward and shrink, like foam thinning out as a wave crashes past. Each
+     one gets its own randomized path/size/shape via the Web Animations API
+     (see script below) so the ripple never reads as a perfect circle. */
+  .slime-ripple-blob {
+    position: absolute;
+    margin: 0;
+    background: var(--card-bg);
+    border: 1.5px solid var(--btn-border);
+    pointer-events: none;
+    will-change: transform, width, height, opacity;
+  }
+
   .slime-content {
     position: relative;
     z-index: 1;
@@ -805,6 +818,101 @@
           }
         });
         btn.addEventListener('pointercancel', disarm);
+
+        // ---------------------------------------------------------------
+        // Click ripple: a burst of blobs radiating out from the click
+        // point, thick near the center and thinning as they travel —
+        // several staggered "waves" with per-blob angle/size/timing jitter
+        // so it reads as an uneven, crashing-wave ripple rather than a
+        // clean concentric circle.
+        // ---------------------------------------------------------------
+        let rippleCount = 0;
+
+        function spawnRipple(e) {
+          const goo = btn.querySelector('.slime-goo');
+          if (!goo) return;
+
+          const rect = btn.getBoundingClientRect();
+          const pad = slimePad();
+          const originX = e.clientX - rect.left + pad;
+          const originY = e.clientY - rect.top + pad;
+
+          const wasHot = btn.classList.contains('is-slime-hot');
+          btn.classList.add('is-slime-hot');
+
+          const WAVES = 3;
+          const BLOBS_PER_WAVE = 5;
+
+          for (let wave = 0; wave < WAVES; wave++) {
+            const waveDelay = wave * 85;
+            const waveRadius = 24 + wave * 20;
+            const waveStartSize = 34 - wave * 5;
+
+            for (let i = 0; i < BLOBS_PER_WAVE; i++) {
+              const baseAngle = (360 / BLOBS_PER_WAVE) * i;
+              const angle = (baseAngle + (Math.random() - 0.5) * 60) * (Math.PI / 180);
+              const radius = waveRadius + (Math.random() - 0.5) * 16;
+              const startSize = Math.max(10, waveStartSize + (Math.random() - 0.5) * 8);
+              const endSize = Math.max(5, startSize * (0.3 + Math.random() * 0.2));
+              const delay = waveDelay + Math.random() * 70;
+              const duration = 460 + Math.random() * 240;
+
+              const dx = Math.cos(angle) * radius;
+              const dy = Math.sin(angle) * radius;
+              const midX = dx * (0.4 + Math.random() * 0.2);
+              const midY = dy * (0.4 + Math.random() * 0.2);
+
+              const blob = document.createElement('span');
+              blob.className = 'slime-ripple-blob';
+              const r1 = 38 + Math.random() * 24;
+              const r2 = 40 + Math.random() * 24;
+              const r3 = 38 + Math.random() * 24;
+              const r4 = 40 + Math.random() * 24;
+              blob.style.borderRadius = `${r1}% ${100 - r1}% ${r3}% ${100 - r3}% / ${r2}% ${r4}% ${100 - r4}% ${100 - r2}%`;
+              blob.style.left = originX + 'px';
+              blob.style.top = originY + 'px';
+              goo.appendChild(blob);
+
+              rippleCount++;
+              const anim = blob.animate([
+                {
+                  transform: 'translate(-50%, -50%) translate(0px, 0px)',
+                  width: startSize + 'px',
+                  height: startSize + 'px',
+                  opacity: 0,
+                },
+                {
+                  transform: `translate(-50%, -50%) translate(${midX}px, ${midY}px)`,
+                  width: (startSize * 0.72) + 'px',
+                  height: (startSize * 0.72) + 'px',
+                  opacity: 0.85,
+                  offset: 0.3,
+                },
+                {
+                  transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px)`,
+                  width: endSize + 'px',
+                  height: endSize + 'px',
+                  opacity: 0,
+                },
+              ], {
+                duration,
+                delay,
+                easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                fill: 'forwards',
+              });
+
+              anim.addEventListener('finish', () => {
+                blob.remove();
+                rippleCount--;
+                if (rippleCount <= 0 && !wasHot && !active) {
+                  btn.classList.remove('is-slime-hot');
+                }
+              });
+            }
+          }
+        }
+
+        btn.addEventListener('click', spawnRipple);
       });
     }
   })();
