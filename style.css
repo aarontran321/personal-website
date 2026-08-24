@@ -1755,15 +1755,15 @@ section.gallery-section {
    photo's own aspect ratio is exactly its rendered shape — no letterboxing,
    no filled background showing through around it. Centering is handled by
    transformTemplate in InfiniteGallery.jsx (translate(-50%, -50%) ahead of
-   the animated x/scale), so this only needs left/top:50% here. */
+   the animated x/scale), so this only needs left/top:50% here.
+   The slide's own box is sized by the photo alone (see
+   .gallery-lightbox-caption below for why) — that's what that translate is
+   centering, so it stays put across the whole role transition. */
 .gallery-lightbox-slide {
   position: absolute;
   left: 50%;
   top: 50%;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   will-change: transform, opacity;
 }
 
@@ -1782,11 +1782,20 @@ section.gallery-section {
   -webkit-user-drag: none;
 }
 
-/* Sits in normal flow below the photo (not overlaid on it), so it only
-   shows once a photo has settled into the main slot and never needs a
-   background scrim to stay legible. */
+/* Positioned absolutely below the photo rather than left in normal flow —
+   in flow, the caption mounting/unmounting as a photo enters/leaves the
+   main role would change the slide's own box height mid-transition, and
+   since that box is what translate(-50%, -50%) centers, the photo would
+   visibly jump/jitter the instant the caption appeared or disappeared.
+   Taking it out of flow means the slide's box is the photo alone, always,
+   so that centering never moves for any reason but the intended slide. */
 .gallery-lightbox-caption {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   margin-top: 14px;
+  text-align: center;
   pointer-events: none;
 }
 
