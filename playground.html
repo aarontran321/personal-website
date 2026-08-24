@@ -146,6 +146,15 @@
   .cursor-trail-hero {
     position: relative;
     min-height: 100vh;
+    /* 100vh on mobile browsers is the *largest* possible viewport (address
+       bar hidden), which is taller than what's actually visible on load —
+       so the button row anchored to this section's bottom edge can end up
+       below the initially-visible area. 100svh is the *smallest* possible
+       viewport (address bar shown), guaranteeing the whole hero — buttons
+       included — fits in what's on screen without requiring a scroll
+       first. Falls back to the line above in browsers that don't support
+       svh. */
+    min-height: 100svh;
     width: 100%;
     display: flex;
     align-items: center;
@@ -259,6 +268,19 @@
       url(#slime-goo)
       drop-shadow(0 0 0.55px var(--btn-border))
       drop-shadow(0 0 0.55px var(--btn-border));
+  }
+
+  /* Safari — iOS Safari in particular — has a known bug where an element
+     carrying this kind of blur+colormatrix SVG filter chain can render
+     fully blank instead of applying the effect. .slime-base (the button's
+     own pill background) lives inside .slime-goo, so when that happens the
+     whole button disappears, not just the decorative blobs. Touch is where
+     this reliably bites: a tap fires pointerenter+pointerdown together, so
+     the filter engages on the very first touch. Skip it there and fall
+     back to the plain (unmerged) blob shapes instead — less seamless, but
+     the button never vanishes. See is-touch-device below. */
+  .is-touch-device .trail-control-btn.is-slime-hot .slime-goo {
+    filter: none;
   }
 
   .slime-base {
@@ -378,9 +400,10 @@
     }
   }
 
-  /* Mobile: instead of wrapping all 5 buttons into a stacked column, keep
-     them in a single swipeable row — sized so ~4 sit fully in view and the
-     5th peeks in at the edge as a hint that there's more to scroll to. */
+  /* Mobile: sized small enough that all 5 buttons sit in one row at once —
+     no swiping required at typical phone widths. overflow-x stays on as a
+     safety net for the narrowest devices, where the row still won't quite
+     fit and can be scrolled instead of clipped. */
   @media (max-width: 640px) {
     .trail-controls {
       left: 0;
@@ -388,14 +411,14 @@
       transform: none;
       max-width: 100%;
       width: 100%;
-      justify-content: flex-start;
+      justify-content: center;
       flex-wrap: nowrap;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      gap: 8px;
-      padding: 36px 28px;
-      margin: -36px 0;
+      gap: 4px;
+      padding: 30px 5px;
+      margin: -30px 0;
     }
 
     .trail-controls::-webkit-scrollbar {
@@ -403,10 +426,26 @@
     }
 
     .trail-control-btn {
-      --slime-pad: 28px;
+      --slime-pad: 18px;
       flex: 0 0 auto;
-      padding: 5px 8px;
-      font-size: 0.56rem;
+      padding: 4px 5px;
+      font-size: 0.46rem;
+    }
+  }
+
+  /* Very narrow phones: shrink once more so the full row still has a shot
+     at fitting without scrolling. */
+  @media (max-width: 360px) {
+    .trail-controls {
+      gap: 3px;
+      padding: 26px 2px;
+      margin: -26px 0;
+    }
+
+    .trail-control-btn {
+      --slime-pad: 12px;
+      padding: 3px 4px;
+      font-size: 0.42rem;
     }
   }
 
@@ -661,6 +700,14 @@
         applyControl(name);
       });
     });
+
+    // `pointer: coarse` alone isn't fully reliable (iPads report `pointer:
+    // fine`), so detect touch capability directly — see the is-touch-device
+    // CSS rule above for why this matters (a Safari filter-rendering bug
+    // that can make the whole button vanish).
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.documentElement.classList.add('is-touch-device');
+    }
 
     // ---------------------------------------------------------------
     // Slime buttons — soft gel membrane.
