@@ -932,9 +932,8 @@ section.projects {
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
 .bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
 .bento-card--nutriai   { grid-column: span 6; grid-row: span 1; }
-.bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
+.bento-card--lasertag  { grid-column: 1 / 5; grid-row: span 1; }
 .bento-card--marrymap  { grid-column: 5 / 13; grid-row: span 1; }
-.bento-card--lasertag  { grid-column: 1 / 5; grid-row: span 2; }
 
 /* --- cards with a redirect target (live demo or GitHub) --- */
 .bento-card--clickable {
@@ -983,11 +982,6 @@ section.projects {
   min-height: 420px;
 }
 
-.bento-card--lasertag .bento-visual {
-  aspect-ratio: 4 / 5;
-  min-height: 420px;
-}
-
 .bento-card--plotboard .bento-visual {
   aspect-ratio: 16 / 9;
   min-height: 340px;
@@ -998,13 +992,13 @@ section.projects {
   min-height: 340px;
 }
 
-/* --- FaceRay: smaller trailing block, doesn't span the full row --- */
-.bento-card--faceray .bento-visual {
+/* --- Laser Tag Now!: smaller trailing block, doesn't span the full row --- */
+.bento-card--lasertag .bento-visual {
   aspect-ratio: 4 / 3;
   min-height: 220px;
 }
 
-/* --- Marrymap: wide trailing block, pairs with FaceRay's row --- */
+/* --- Marrymap: wide trailing block, pairs with Laser Tag Now!'s row --- */
 .bento-card--marrymap .bento-visual {
   aspect-ratio: 21 / 8;
   min-height: 260px;
@@ -1170,14 +1164,6 @@ section.projects {
   background: #000;
 }
 
-/* --- Type A: FaceRay, vibrant gradient with a centered glyph + status badge --- */
-.bento-visual--gradient {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #a855f7;
-}
-
 /* --- Plotboard: solid field-green with a route-diagram glyph --- */
 .bento-visual--field {
   display: flex;
@@ -1200,30 +1186,6 @@ section.projects {
   align-items: center;
   justify-content: center;
   background: #fb7185;
-}
-
-.gradient-glyph {
-  width: 64px;
-  height: 64px;
-  opacity: 0.95;
-}
-
-.status-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 2;
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  padding: 5px 11px;
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 /* --- text block stacked under the visual --- */
@@ -1299,13 +1261,12 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--baam,
-  .bento-card--lasertag {
+  .bento-card--baam {
     grid-column: span 1;
     grid-row: span 1;
   }
 
-  .bento-card--faceray {
+  .bento-card--lasertag {
     grid-column: 1 / 2;
     grid-row: span 1;
   }
@@ -1335,11 +1296,10 @@ section.projects {
 
   .bento-card--retermina,
   .bento-card--baam,
-  .bento-card--faceray,
+  .bento-card--lasertag,
   .bento-card--plotboard,
   .bento-card--marrymap,
-  .bento-card--nutriai,
-  .bento-card--lasertag {
+  .bento-card--nutriai {
     grid-column: span 1;
     grid-row: span 1;
   }
@@ -1353,12 +1313,11 @@ section.projects {
   .bento-card--plotboard .bento-visual,
   .bento-card--nutriai .bento-visual,
   .bento-card--marrymap .bento-visual,
-  .bento-card--faceray .bento-visual {
+  .bento-card--lasertag .bento-visual {
     aspect-ratio: 16 / 9;
   }
 
-  .bento-card--baam .bento-visual,
-  .bento-card--lasertag .bento-visual {
+  .bento-card--baam .bento-visual {
     aspect-ratio: 4 / 5;
   }
 

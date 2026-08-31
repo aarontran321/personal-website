@@ -424,12 +424,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let index = clips.findIndex(clip => clip.classList.contains('is-active'));
     if (index < 0) index = 0;
+    let inView = false;
 
-    function playClip(i) {
+    // `reset` starts the clip over (used when the sequence advances);
+    // omit it to just resume the current clip in place. Without this
+    // split, a stray IntersectionObserver re-fire while already in view
+    // (e.g. from a layout shift elsewhere on the page) would rewind the
+    // active clip to 0 every time, and it would never reach 'ended' —
+    // so the sequence looked stuck on the first clip forever.
+    function activateClip(i, reset) {
+      index = i;
       clips.forEach((clip, ci) => clip.classList.toggle('is-active', ci === i));
       const clip = clips[i];
       if (!clip.src && clip.dataset.src) clip.src = clip.dataset.src;
-      clip.currentTime = 0;
+      if (reset) clip.currentTime = 0;
       clip.play().catch(() => {});
     }
 
@@ -439,21 +447,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clips.forEach(clip => {
       clip.addEventListener('ended', () => {
-        index = (index + 1) % clips.length;
-        playClip(index);
+        activateClip((index + 1) % clips.length, true);
       });
     });
 
     if (!('IntersectionObserver' in window)) {
-      playClip(index);
+      activateClip(index, true);
       return;
     }
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          playClip(index);
+          if (!inView) {
+            inView = true;
+            activateClip(index, false);
+          }
         } else {
+          inView = false;
           pauseAll();
         }
       });
