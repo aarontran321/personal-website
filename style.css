@@ -934,6 +934,7 @@ section.projects {
 .bento-card--nutriai   { grid-column: span 6; grid-row: span 1; }
 .bento-card--faceray   { grid-column: 1 / 5; grid-row: span 1; }
 .bento-card--marrymap  { grid-column: 5 / 13; grid-row: span 1; }
+.bento-card--lasertag  { grid-column: 1 / 5; grid-row: span 2; }
 
 /* --- cards with a redirect target (live demo or GitHub) --- */
 .bento-card--clickable {
@@ -978,6 +979,11 @@ section.projects {
 }
 
 .bento-card--baam .bento-visual {
+  aspect-ratio: 4 / 5;
+  min-height: 420px;
+}
+
+.bento-card--lasertag .bento-visual {
   aspect-ratio: 4 / 5;
   min-height: 420px;
 }
@@ -1028,6 +1034,24 @@ section.projects {
 }
 
 .thumb-video.playing {
+  opacity: 1;
+}
+
+/* two-clip sequence player (e.g. Laser Tag Now!) -- clips stack absolute
+   and are cross-faded by JS toggling .is-active as each one finishes,
+   so only one is ever visible/audible at a time */
+.seq-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.seq-video.is-active {
   opacity: 1;
 }
 
@@ -1275,7 +1299,8 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--baam {
+  .bento-card--baam,
+  .bento-card--lasertag {
     grid-column: span 1;
     grid-row: span 1;
   }
@@ -1313,7 +1338,8 @@ section.projects {
   .bento-card--faceray,
   .bento-card--plotboard,
   .bento-card--marrymap,
-  .bento-card--nutriai {
+  .bento-card--nutriai,
+  .bento-card--lasertag {
     grid-column: span 1;
     grid-row: span 1;
   }
@@ -1331,7 +1357,8 @@ section.projects {
     aspect-ratio: 16 / 9;
   }
 
-  .bento-card--baam .bento-visual {
+  .bento-card--baam .bento-visual,
+  .bento-card--lasertag .bento-visual {
     aspect-ratio: 4 / 5;
   }
 

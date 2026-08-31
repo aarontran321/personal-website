@@ -404,6 +404,66 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
+// PROJECT VIDEO SEQUENCE PLAYER (Laser Tag Now!)
+// Some cards hold multiple clips that should play back to back
+// (first clip first) instead of looping a single one. Clips
+// stack in the same box and cross-fade via the .is-active class
+// as each one ends; the whole sequence only plays while its
+// card is on screen, same gating as the single-clip autoplay.
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const sequences = Array.from(document.querySelectorAll('[data-sequence]'));
+  if (sequences.length === 0) return;
+
+  const conn = navigator.connection;
+  if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ''))) return;
+
+  sequences.forEach(container => {
+    const clips = Array.from(container.querySelectorAll('.seq-video'));
+    if (clips.length === 0) return;
+
+    let index = clips.findIndex(clip => clip.classList.contains('is-active'));
+    if (index < 0) index = 0;
+
+    function playClip(i) {
+      clips.forEach((clip, ci) => clip.classList.toggle('is-active', ci === i));
+      const clip = clips[i];
+      if (!clip.src && clip.dataset.src) clip.src = clip.dataset.src;
+      clip.currentTime = 0;
+      clip.play().catch(() => {});
+    }
+
+    function pauseAll() {
+      clips.forEach(clip => clip.pause());
+    }
+
+    clips.forEach(clip => {
+      clip.addEventListener('ended', () => {
+        index = (index + 1) % clips.length;
+        playClip(index);
+      });
+    });
+
+    if (!('IntersectionObserver' in window)) {
+      playClip(index);
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          playClip(index);
+        } else {
+          pauseAll();
+        }
+      });
+    }, { threshold: 0.25 });
+
+    observer.observe(container);
+  });
+});
+
+// ==========================================================
 // PROJECTS "THINKING" TICKER — typewriter effect
 // types each status phrase out, holds, deletes it, then moves
 // on to the next phrase in the cycle
