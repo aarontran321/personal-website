@@ -31,6 +31,7 @@
   </nav>
 </header>
 
+<div class="hero-scroll-track" id="heroScrollTrack">
 <section class="hero">
   <div class="hero-text">
     <h1 class="hero-title"><span class="hero-phrase hero-phrase--1">Hi,</span><span class="hero-phrase hero-phrase--2"> I'm Aaron,</span><span class="hero-phrase hero-phrase--3"> a computer science student who</span> <span class="hero-title-accent hero-phrase hero-phrase--4">engineers.</span></h1>
@@ -75,6 +76,8 @@
     </div>
   </div>
 
+  <div class="hero-route" id="heroRoute" aria-hidden="true"></div>
+
   <div class="scroll-indicator" aria-hidden="true">
     <span class="scroll-text">scroll to see more</span>
     <svg class="scroll-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -82,6 +85,7 @@
     </svg>
   </div>
 </section>
+</div>
 
 <div id="universal-hover-card" class="hover-preview">
   <img id="universal-hover-img" src="" alt="Link preview">
@@ -257,5 +261,6 @@
   <script src="script.js"></script>
   <script type="module" src="/components/analytics.js"></script>
   <script type="module" src="/components/footer-main.jsx"></script>
+  <script type="module" src="/components/hero-route-main.jsx"></script>
 </body>
 </html>
