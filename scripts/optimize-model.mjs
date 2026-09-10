@@ -57,10 +57,15 @@ await doc.transform(
   prune(),
   textureCompress({ encoder: sharp, targetFormat: "webp", resize: [512, 512] }),
   reorder({ encoder: MeshoptEncoder, target: "size" }),
-  // UV + vertex color only — see the header note on why POSITION/NORMAL are left alone.
+  // Everything except POSITION/NORMAL — see the header note on why those two
+  // are left alone. JOINTS/WEIGHTS are only a component-type change (no node
+  // dequant transform is involved), so they are safe and worth ~120KB here:
+  // WEIGHTS f32->u8 and JOINTS u16->u8 save 16 bytes on every one of the
+  // ~7.3k verts.
   quantize({
-    pattern: /^(TEXCOORD|COLOR)(_\d+)?$/,
-    patternTargets: /^(TEXCOORD|COLOR)(_\d+)?$/,
+    pattern: /^(TEXCOORD|COLOR|JOINTS|WEIGHTS)(_\d+)?$/,
+    patternTargets: /^(TEXCOORD|COLOR|JOINTS|WEIGHTS)(_\d+)?$/,
+    quantizeWeight: 8,
   }),
 );
 
