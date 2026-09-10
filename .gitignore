@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+
+# Local editor/tooling config, not project source
+.claude/
