@@ -6,9 +6,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 import chibiYasuoUrl from "./chibi_yasuo.glb?url";
+import { preloadModel } from "./model-preload.js";
 
 // chibi_yasuo.glb is meshopt-compressed (EXT_meshopt_compression) with
-// resampled animation and WebP textures — ~1.25MB of raw glTF down to ~465KB
+// resampled animation and WebP textures — ~1.25MB of raw glTF down to ~424KB
 // (see scripts/optimize-model.mjs). The meshopt decoder is therefore
 // mandatory to parse it at all. We wire GLTFLoader by hand here instead of
 // drei's useGLTF so the bundle doesn't also pull in DRACOLoader + KTX2Loader,
@@ -19,7 +20,22 @@ import chibiYasuoUrl from "./chibi_yasuo.glb?url";
 // transform on the node — which three ignores for a SkinnedMesh (skinning runs
 // off the skeleton), so quantizing them makes staticBoundingBox() below read a
 // ~1.9-unit box instead of ~226 and the character loads ~120x too large.
-const attachMeshopt = (loader) => loader.setMeshoptDecoder(MeshoptDecoder);
+// JOINTS/WEIGHTS are quantized; those are a plain component-type change.
+const gltfLoader = new GLTFLoader();
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+// A loader-shaped adapter rather than a GLTFLoader instance, so the bytes come
+// from the download footer-main.jsx already started (see model-preload.js)
+// instead of a second request issued only once this chunk has evaluated.
+// useLoader accepts an instance as well as a constructor and keys its suspense
+// cache on it, so this still de-dupes and suspends exactly like the real thing.
+const prefetchedGltfLoader = {
+  load(url, onLoad, _onProgress, onError) {
+    preloadModel(url)
+      .then((buffer) => gltfLoader.parse(buffer, "", onLoad, onError))
+      .catch(onError);
+  },
+};
 
 // The raw export is ~226 units tall (League rig units), normalized at load
 // to CHARACTER_HEIGHT world units with its feet sitting exactly on the
@@ -61,7 +77,7 @@ const CROSSFADE_SECONDS = 0.25;
 
 export function ChibiYasuo({ animation, onFinished }) {
   const group = useRef();
-  const { scene, animations } = useLoader(GLTFLoader, chibiYasuoUrl, attachMeshopt);
+  const { scene, animations } = useLoader(prefetchedGltfLoader, chibiYasuoUrl);
   const { actions, mixer } = useAnimations(animations, group);
   const currentActionRef = useRef(null);
 
@@ -119,4 +135,4 @@ export function ChibiYasuo({ animation, onFinished }) {
   );
 }
 
-useLoader.preload(GLTFLoader, chibiYasuoUrl, attachMeshopt);
+useLoader.preload(prefetchedGltfLoader, chibiYasuoUrl);
