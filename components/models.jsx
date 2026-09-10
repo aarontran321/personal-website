@@ -1,8 +1,25 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useGLTF, useAnimations } from "@react-three/drei";
+import { useLoader } from "@react-three/fiber";
+import { useAnimations } from "@react-three/drei";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 import chibiYasuoUrl from "./chibi_yasuo.glb?url";
+
+// chibi_yasuo.glb is meshopt-compressed (EXT_meshopt_compression) with
+// resampled animation and WebP textures — ~1.25MB of raw glTF down to ~465KB
+// (see scripts/optimize-model.mjs). The meshopt decoder is therefore
+// mandatory to parse it at all. We wire GLTFLoader by hand here instead of
+// drei's useGLTF so the bundle doesn't also pull in DRACOLoader + KTX2Loader,
+// which useGLTF registers unconditionally; the meshopt decoder is ~15KB.
+//
+// NB: POSITION/NORMAL are intentionally left un-quantized upstream. glTF's
+// KHR_mesh_quantization stores them as normalized ints plus a per-mesh dequant
+// transform on the node — which three ignores for a SkinnedMesh (skinning runs
+// off the skeleton), so quantizing them makes staticBoundingBox() below read a
+// ~1.9-unit box instead of ~226 and the character loads ~120x too large.
+const attachMeshopt = (loader) => loader.setMeshoptDecoder(MeshoptDecoder);
 
 // The raw export is ~226 units tall (League rig units), normalized at load
 // to CHARACTER_HEIGHT world units with its feet sitting exactly on the
@@ -44,7 +61,7 @@ const CROSSFADE_SECONDS = 0.25;
 
 export function ChibiYasuo({ animation, onFinished }) {
   const group = useRef();
-  const { scene, animations } = useGLTF(chibiYasuoUrl);
+  const { scene, animations } = useLoader(GLTFLoader, chibiYasuoUrl, attachMeshopt);
   const { actions, mixer } = useAnimations(animations, group);
   const currentActionRef = useRef(null);
 
@@ -102,4 +119,4 @@ export function ChibiYasuo({ animation, onFinished }) {
   );
 }
 
-useGLTF.preload(chibiYasuoUrl);
+useLoader.preload(GLTFLoader, chibiYasuoUrl, attachMeshopt);
