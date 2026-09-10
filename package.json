@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "optimize:model": "node scripts/optimize-model.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.4.4",
@@ -18,7 +19,12 @@
     "three": "^0.178.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
     "@vitejs/plugin-react": "^4.6.0",
+    "meshoptimizer": "~1.2.0",
+    "sharp": "^0.35.4",
     "vite": "^7.0.0"
   }
 }
