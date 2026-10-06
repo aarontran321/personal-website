@@ -235,52 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
-// UI AUDIO ENGINE (Smart Tab Navigation Fix)
-// ==========================================================
-document.addEventListener('DOMContentLoaded', () => {
-  // The source click.wav was 1.15s of stereo PCM (200KB) for a UI blip;
-  // click.mp3 is the same sound at 14KB. Still held until the page has
-  // finished loading so it never competes with the first paint.
-  const clickSound = new Audio();
-  clickSound.preload = 'none';
-  clickSound.volume = 0.4;
-
-  const warmAudio = () => {
-    if (clickSound.src) return;
-    clickSound.src = 'click.mp3';
-    clickSound.preload = 'auto';
-    clickSound.load();
-  };
-  if (document.readyState === 'complete') warmAudio();
-  else window.addEventListener('load', warmAudio, { once: true });
-  // whichever comes first: page fully loaded, or the user reaching for something
-  window.addEventListener('pointerdown', warmAudio, { once: true });
-
-  const interactiveElements = document.querySelectorAll('a, button, .card, .food-card');
-
-  interactiveElements.forEach(element => {
-    element.addEventListener('click', (e) => {
-      clickSound.currentTime = 0;
-      clickSound.play().catch(() => {/* Audio engine catch */});
-
-      if (element.classList.contains('site-nav-link')) return; // nav dot animation handles its own navigation timing
-
-      const href = element.getAttribute('href');
-      const target = element.getAttribute('target');
-
-      if (target === '_blank') return; 
-
-      if (href && !href.startsWith('#') && href !== '#') {
-        e.preventDefault();
-        setTimeout(() => {
-          window.location.href = href;
-        }, 60);
-      }
-    });
-  });
-});
-
-// ==========================================================
 // INFINITE FOOD GALLERY SLIDER ENGINE
 // ==========================================================
 document.addEventListener('DOMContentLoaded', () => {
