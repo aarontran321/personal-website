@@ -60,6 +60,7 @@ html, body {
    ========================================== */
 .hero {
   position: relative;
+  isolation: isolate;
   min-height: 100vh;
   width: 100%;
   display: flex;
@@ -69,8 +70,29 @@ html, body {
   gap: 60px;
 }
 
+/* Overhead sharks swim here, behind the copy. The canvas is out of
+   flow and ignores the pointer, so it cannot widen the page, block
+   taps, or cover the intro when the window gets narrow. */
+.hero-sharks {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  touch-action: auto;
+}
+
+.hero-sharks.is-idle {
+  visibility: hidden;
+}
+
 .hero-text {
+  position: relative;
+  z-index: 1;
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -568,6 +590,7 @@ h2 {
    ========================================== */
 .scroll-indicator {
   position: absolute;
+  z-index: 1;
   left: 50%;
   bottom: 48px;
   transform: translateX(-50%);

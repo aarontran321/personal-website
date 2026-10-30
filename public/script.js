@@ -1,3 +1,466 @@
+// ==========================================================
+// HERO SHARKS — two or three small overhead sharks in the
+// open area to the right of the intro. They cruise left and
+// right on a slow glide. Each one is drawn with its own mix
+// of characters, in a muted gray-blue.
+//
+// The swim area matches the open blob beside the copy. A
+// narrow window or a phone has no room for it, and the canvas
+// goes idle instead of covering the text.
+// ==========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('heroSharks');
+  const hero = canvas && canvas.closest('.hero');
+  if (!canvas || !hero) return;
+
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) return;
+
+  // Normalized to the hero. Traced from the open region on the
+  // right: a cap near the top corner, a wide middle, and a
+  // rounded bottom that stops above the scroll hint.
+  const REGION = [
+    [0.90, 0.17],
+    [0.84, 0.21],
+    [0.74, 0.26],
+    [0.64, 0.33],
+    [0.58, 0.42],
+    [0.555, 0.55],
+    [0.54, 0.68],
+    [0.51, 0.78],
+    [0.495, 0.84],
+    [0.53, 0.895],
+    [0.66, 0.91],
+    [0.82, 0.90],
+    [0.91, 0.85],
+    [0.945, 0.70],
+    [0.95, 0.48],
+    [0.945, 0.32],
+    [0.92, 0.22],
+  ];
+
+  const MIRROR = {
+    '<': '>', '>': '<',
+    '(': ')', ')': '(',
+    '/': '\\', '\\': '/',
+    '{': '}', '}': '{',
+  };
+
+  // Each profile is (left pad, body length, snout). The short rows
+  // sit at the rear, so the tail is on the left and the point is
+  // the snout on the right. A palette fills the body so neighboring
+  // cells are different characters.
+  function carve(profile, palette) {
+    return profile.map(([pad, n, snout], y) => {
+      let line = '';
+      for (let x = 0; x < pad + n; x++) {
+        line += x < pad ? ' ' : palette[(x * 3 + y * 5) % palette.length];
+      }
+      return snout ? line + '>' : line;
+    });
+  }
+
+  const KINDS = [
+    {
+      lines: carve([
+        [0, 2, false],
+        [1, 6, false],
+        [3, 12, false],
+        [4, 18, false],
+        [5, 22, true],
+        [4, 18, false],
+        [3, 12, false],
+        [1, 6, false],
+        [0, 2, false],
+      ], '#%@&=+*'),
+      color: '#6d8498',
+      dark: '#b7c4d1',
+      size: 12,
+      speed: 20,
+      lane: 0.24,
+      freq: 0.58,
+      amp: 11,
+      phase: 0.4,
+      nx: 0.72,
+      dir: 1,
+    },
+    {
+      lines: carve([
+        [0, 3, false],
+        [2, 7, false],
+        [3, 13, false],
+        [2, 19, false],
+        [4, 21, true],
+        [2, 19, false],
+        [3, 13, false],
+        [2, 7, false],
+        [0, 3, false],
+      ], 'XH8#%@*o'),
+      color: '#7a90a4',
+      dark: '#c3ced8',
+      size: 11,
+      speed: 15,
+      lane: 0.46,
+      freq: 0.46,
+      amp: 14,
+      phase: 2.2,
+      nx: 0.82,
+      dir: -1,
+    },
+    {
+      lines: carve([
+        [0, 2, false],
+        [1, 5, false],
+        [2, 10, false],
+        [3, 15, true],
+        [2, 10, false],
+        [1, 5, false],
+        [0, 2, false],
+      ], '@#*+=%&'),
+      color: '#61798d',
+      dark: '#aebccc',
+      size: 11,
+      speed: 24,
+      lane: 0.68,
+      freq: 0.7,
+      amp: 9,
+      phase: 4.1,
+      nx: 0.76,
+      dir: 1,
+    },
+  ];
+
+  const sharks = KINDS.map((kind) => ({
+    ...kind,
+    vx: kind.dir * kind.speed,
+    facing: kind.dir,
+    y: 0,
+    halfW: 0,
+    halfH: 0,
+    placed: false,
+  }));
+
+  const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduced = reducedQuery.matches;
+  let onScreen = true;
+  let running = false;
+  let rafId = 0;
+  let lastTs = 0;
+  let dpr = 1;
+  let heroW = 0;
+  let heroH = 0;
+  let active = false;
+  let obstacles = [];
+
+  function clamp(v, a, b) {
+    return v < a ? a : v > b ? b : v;
+  }
+
+  function mirrorLine(line) {
+    return [...line].reverse().map((ch) => MIRROR[ch] || ch).join('');
+  }
+
+  function inside(nx, ny) {
+    let hits = false;
+    for (let i = 0, j = REGION.length - 1; i < REGION.length; j = i++) {
+      const [xi, yi] = REGION[i];
+      const [xj, yj] = REGION[j];
+      if ((yi > ny) !== (yj > ny) && nx < ((xj - xi) * (ny - yi)) / (yj - yi) + xi) {
+        hits = !hits;
+      }
+    }
+    return hits;
+  }
+
+  function spanAt(nx) {
+    const ys = [];
+    for (let i = 0, j = REGION.length - 1; i < REGION.length; j = i++) {
+      const [xi, yi] = REGION[i];
+      const [xj, yj] = REGION[j];
+      if ((xi <= nx && xj > nx) || (xj <= nx && xi > nx)) {
+        const t = (nx - xi) / (xj - xi);
+        ys.push(yi + t * (yj - yi));
+      }
+    }
+    if (ys.length < 2) return null;
+    ys.sort((a, b) => a - b);
+    return { top: ys[0], bottom: ys[ys.length - 1] };
+  }
+
+  function measureSharks() {
+    sharks.forEach((shark) => {
+      ctx.font = `${shark.size}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      let max = 0;
+      shark.lines.forEach((line) => {
+        max = Math.max(max, ctx.measureText(line).width);
+      });
+      shark.halfW = max / 2;
+      shark.lineH = shark.size + 2;
+      shark.halfH = (shark.lines.length * shark.lineH) / 2;
+    });
+  }
+
+  function readObstacles() {
+    const origin = hero.getBoundingClientRect();
+    const pad = 18;
+    obstacles = [];
+    hero.querySelectorAll('.hero-title, .hero-meta, .scroll-indicator').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return;
+      obstacles.push({
+        l: r.left - origin.left - pad,
+        r: r.right - origin.left + pad,
+        t: r.top - origin.top - pad,
+        b: r.bottom - origin.top + pad,
+      });
+    });
+  }
+
+  function bodyRect(shark, x, y) {
+    return {
+      l: x - shark.halfW - 4,
+      r: x + shark.halfW + 4,
+      t: y - shark.halfH - 2,
+      b: y + shark.halfH + 2,
+    };
+  }
+
+  function hitsObstacle(rect) {
+    return obstacles.some((obs) => rect.l < obs.r && rect.r > obs.l && rect.t < obs.b && rect.b > obs.t);
+  }
+
+  function rectInside(rect) {
+    const pts = [
+      [rect.l, rect.t],
+      [rect.r, rect.t],
+      [rect.l, rect.b],
+      [rect.r, rect.b],
+    ];
+    return pts.every(([x, y]) => inside(x / heroW, y / heroH));
+  }
+
+  function placeY(shark, nx, t) {
+    const span = spanAt(nx);
+    if (!span) return null;
+    const top = span.top * heroH + shark.halfH + 8;
+    const bot = span.bottom * heroH - shark.halfH - 8;
+    if (bot - top < 10) return null;
+    const drift = Math.sin(t * 0.17 + shark.phase) * 0.05;
+    const lane = clamp(shark.lane + drift, 0.16, 0.84);
+    const bob = reduced ? 0 : Math.sin(t * shark.freq + shark.phase) * Math.min(shark.amp, (bot - top) * 0.2);
+    return clamp(top + (bot - top) * lane + bob, top, bot);
+  }
+
+  function canBe(shark, nx, t) {
+    if (nx <= 0 || nx >= 1 || heroW < 2 || heroH < 2) return null;
+    const y = placeY(shark, nx, t);
+    if (y == null) return null;
+    const rect = bodyRect(shark, nx * heroW, y);
+    if (!rectInside(rect) || hitsObstacle(rect)) return null;
+    return y;
+  }
+
+  function park(shark, t) {
+    const start = shark.nx;
+    for (let i = 0; i <= 36; i++) {
+      const nx = clamp(start + (i / 36) * 0.34, 0.5, 0.94);
+      const y = canBe(shark, nx, t);
+      if (y != null) {
+        shark.nx = nx;
+        shark.y = y;
+        shark.placed = true;
+        return;
+      }
+      const nx2 = clamp(start - (i / 36) * 0.34, 0.5, 0.94);
+      const y2 = canBe(shark, nx2, t);
+      if (y2 != null) {
+        shark.nx = nx2;
+        shark.y = y2;
+        shark.placed = true;
+        return;
+      }
+    }
+    shark.placed = false;
+  }
+
+  function resizeCanvas() {
+    const width = hero.clientWidth;
+    const height = hero.clientHeight;
+    const next = Math.min(window.devicePixelRatio || 1, 2);
+    if (width === heroW && height === heroH && next === dpr && canvas.width > 1) return;
+    heroW = width;
+    heroH = height;
+    dpr = next;
+    canvas.width = Math.max(1, Math.round(width * next));
+    canvas.height = Math.max(1, Math.round(height * next));
+    ctx.setTransform(next, 0, 0, next, 0, 0);
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, heroW, heroH);
+    const dark = document.body.classList.contains('dark-mode');
+    sharks.forEach((shark) => {
+      if (!shark.placed) return;
+      const lines = shark.facing < 0 ? shark.lines.map(mirrorLine) : shark.lines;
+      ctx.font = `${shark.size}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.fillStyle = dark ? shark.dark : shark.color;
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+      const originX = shark.nx * heroW - shark.halfW;
+      const originY = shark.y - shark.halfH;
+      lines.forEach((line, i) => {
+        const wave = reduced ? 0 : Math.sin(t * 2.1 + shark.phase + i * 0.72) * 1.15;
+        ctx.fillText(line, originX + wave, originY + i * shark.lineH);
+      });
+    });
+  }
+
+  function step(dt, t) {
+    sharks.forEach((shark) => {
+      if (!shark.placed) return;
+      const reach = Math.max(12, shark.halfW * 0.55) / heroW;
+      const look = shark.nx + shark.dir * reach;
+      if (canBe(shark, look, t) == null && canBe(shark, shark.nx - shark.dir * reach, t) != null) {
+        shark.dir *= -1;
+      }
+      shark.vx += (shark.dir * shark.speed - shark.vx) * (1 - Math.exp(-1.05 * dt));
+      const nx = shark.nx + (shark.vx * dt) / heroW;
+      const y = canBe(shark, nx, t);
+      if (y != null) {
+        shark.nx = nx;
+        shark.y = y;
+      } else {
+        const hold = canBe(shark, shark.nx, t);
+        if (hold != null) shark.y = hold;
+        shark.vx *= 0.5;
+      }
+      if (shark.vx < -5) shark.facing = -1;
+      else if (shark.vx > 5) shark.facing = 1;
+    });
+  }
+
+  function stop() {
+    running = false;
+    lastTs = 0;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  function frame(ts) {
+    rafId = 0;
+    if (!running) return;
+    if (!lastTs) lastTs = ts;
+    let dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    if (dt > 0.05) dt = 0.05;
+    if (dt < 0) dt = 0;
+    if (active && !reduced) {
+      const t = ts / 1000;
+      step(dt, t);
+      draw(t);
+    }
+    if (running) rafId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (running || reduced || document.hidden || !onScreen || !active) return;
+    running = true;
+    lastTs = 0;
+    rafId = requestAnimationFrame(frame);
+  }
+
+  let layoutQueued = false;
+  function layout() {
+    const t = performance.now() / 1000;
+    readObstacles();
+    const width = hero.clientWidth;
+    const height = hero.clientHeight;
+    if (width < 2 || height < 2) {
+      active = false;
+    } else {
+      resizeCanvas();
+      measureSharks();
+      sharks.forEach((shark) => {
+        park(shark, t);
+        if (!shark.placed) return;
+        let min = Infinity;
+        let max = -Infinity;
+        for (let i = 0; i <= 28; i++) {
+          const nx = 0.46 + (0.5 * i) / 28;
+          if (canBe(shark, nx, t) != null) {
+            const x = nx * heroW;
+            if (x < min) min = x;
+            if (x > max) max = x;
+          }
+        }
+        const room = max > min ? max - min : 0;
+        if (room < shark.halfW + 72) shark.placed = false;
+      });
+      active = sharks.filter((shark) => shark.placed).length >= 2;
+    }
+    if (!active) {
+      canvas.classList.add('is-idle');
+      sharks.forEach((shark) => { shark.placed = false; });
+      if (canvas.width !== 1 || canvas.height !== 1) {
+        canvas.width = 1;
+        canvas.height = 1;
+      }
+      heroW = 0;
+      heroH = 0;
+      stop();
+      return;
+    }
+    canvas.classList.remove('is-idle');
+    if (reduced) {
+      stop();
+      draw(t);
+      return;
+    }
+    start();
+  }
+
+  function requestLayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => {
+      layoutQueued = false;
+      layout();
+    });
+  }
+
+  const ro = new ResizeObserver(requestLayout);
+  ro.observe(hero);
+  hero.querySelectorAll('.hero-title, .hero-meta').forEach((el) => ro.observe(el));
+
+  const io = new IntersectionObserver((entries) => {
+    onScreen = entries.some((entry) => entry.isIntersecting);
+    if (onScreen) start();
+    else stop();
+  }, { threshold: 0 });
+  io.observe(hero);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop();
+    else requestLayout();
+  });
+
+  if (typeof reducedQuery.addEventListener === 'function') {
+    reducedQuery.addEventListener('change', () => {
+      reduced = reducedQuery.matches;
+      requestLayout();
+    });
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(requestLayout).catch(() => {});
+  }
+
+  const viewport = window.visualViewport;
+  if (viewport) viewport.addEventListener('resize', requestLayout, { passive: true });
+
+  requestLayout();
+});
+
 // Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.location.hash) {
