@@ -10,7 +10,7 @@
   --card-bg: #222228;
   --card-border: #2e2e35;
   --card-hover-border: #3e3e48;
-  --nav-bg: rgba(26, 26, 31, 0.85);
+  --nav-bg: #1a1a1f;
   --btn-border: #2e2e35;
   --btn-icon-color: #94a3b8;
 }
@@ -24,7 +24,7 @@
   --card-bg: #ffffff;            
   --card-border: #e2e8f0;
   --card-hover-border: #94a3b8;
-  --nav-bg: rgba(248, 250, 252, 0.85);
+  --nav-bg: #f8fafc;
   --btn-border: #e2e8f0;
   --btn-icon-color: #475569;
 }
@@ -38,10 +38,6 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 html, body {
   background-color: var(--bg-color) !important;
   color: var(--text-color);
@@ -50,9 +46,20 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  /* clip hides sideways overflow without turning the page into its own
+     scroll container, which is what overflow-x: hidden does and what made
+     wheel scrolling miss the browser's fast path */
+  overflow-x: clip;
   font-size: 1.15rem;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Infinite animations keep painting while the page moves. Freeze them for
+   the gesture, then let them resume once scrolling settles. */
+html.is-scrolling *,
+html.is-scrolling *::before,
+html.is-scrolling *::after {
+  animation-play-state: paused !important;
 }
 
 /* ==========================================
@@ -177,6 +184,18 @@ html, body {
   .hero-title-accent {
     color: var(--hero-accent);
     -webkit-text-fill-color: var(--hero-accent);
+  }
+
+  .scroll-chevron,
+  .status-blob,
+  .status-ticker {
+    animation: none;
+    opacity: 1;
+  }
+
+  .tag-circle path {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }
 
@@ -480,9 +499,9 @@ html, body {
   gap: 32px;
   padding: 18px 40px;
   border-bottom: 1px solid var(--card-border);
+  /* Solid, same colour as the page. A translucent blur on a fixed bar
+     re-samples everything scrolling underneath it, every frame. */
   background: var(--nav-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .site-name {
@@ -631,12 +650,10 @@ h2 {
   0%, 100% {
     transform: scale(0.85);
     opacity: 0.75;
-    border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
   }
   50% {
     transform: scale(1.2);
     opacity: 1;
-    border-radius: 58% 42% 37% 63% / 55% 40% 60% 45%;
   }
 }
 
@@ -964,6 +981,9 @@ section.projects {
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   transition: border-color 0.3s ease;
+  /* Keep a playing video's frames inside this card so they don't dirty
+     the rest of the page while it scrolls. */
+  contain: paint;
 }
 
 .bento-card:hover .bento-visual {
@@ -1603,6 +1623,7 @@ section.gallery-section {
   cursor: grab;
   touch-action: none;
   background: var(--bg-color);
+  contain: paint;
 }
 
 .gallery-canvas:active {
@@ -1655,12 +1676,11 @@ section.gallery-section {
   display: block;
   user-select: none;
   -webkit-user-drag: none;
-  /* Kept on its own compositing layer at all times (not just while zoomed)
-     — promoting/demoting the layer on every hover toggle is what caused the
-     zoom to stutter or get stuck when the cursor crossed a card's edge
-     rapidly (e.g. flicking on/off a few times fast, which also happens
-     naturally since passive parallax nudges cards under the cursor). */
-  will-change: transform;
+  /* A standing transform so the zoom transition always has something to
+     interpolate. will-change is only applied while zoomed: a permanent
+     layer on every copy of every photo (about a hundred of them) made
+     scrolling the about page composite all of those layers at once. */
+  transform: scale(1);
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
@@ -1671,6 +1691,7 @@ section.gallery-section {
    the transition each time. */
 .gallery-card-frame.is-zoomed img {
   transform: scale(1.08);
+  will-change: transform;
 }
 
 .gallery-card-caption {
