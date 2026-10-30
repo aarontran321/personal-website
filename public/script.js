@@ -1,8 +1,8 @@
 // ==========================================================
-// HERO SHARKS — two or three small overhead sharks in the
-// open area to the right of the intro. They cruise left and
-// right on a slow glide. Each one is drawn with its own mix
-// of characters, in a muted gray-blue.
+// HERO SHARKS — two or three overhead sharks in the open
+// area to the right of the intro. The body stays a solid
+// silhouette. A bend travels from the head down the spine,
+// and the characters on that spine change with the bend.
 //
 // The swim area matches the open blob beside the copy. A
 // narrow window or a phone has no room for it, and the canvas
@@ -39,99 +39,69 @@ document.addEventListener('DOMContentLoaded', () => {
     [0.92, 0.22],
   ];
 
-  const MIRROR = {
-    '<': '>', '>': '<',
-    '(': ')', ')': '(',
-    '/': '\\', '\\': '/',
-    '{': '}', '}': '{',
-  };
+  // Overhead shark, tail on the left, snout on the right.
+  // '#' is the body, 'o' is an eye. The spine is filled in
+  // while drawing so it can change as the bend travels.
+  const SHARK_ROWS = [
+    '   ######              ##########           ',
+    '  ########            ############          ',
+    ' ##########           ############          ',
+    '   ######       ################            ',
+    '             #######################o##     ',
+    '      ####################################  ',
+    '    ########################################',
+    '      ####################################  ',
+    '             #######################o##     ',
+    '   ######       ################            ',
+    ' ##########           ############          ',
+    '  ########            ############          ',
+    '   ######              ##########           ',
+  ];
+  const SPINE = '+*o~';
 
-  // Each profile is (left pad, body length, snout). The short rows
-  // sit at the rear, so the tail is on the left and the point is
-  // the snout on the right. A palette fills the body so neighboring
-  // cells are different characters.
-  function carve(profile, palette) {
-    return profile.map(([pad, n, snout], y) => {
-      let line = '';
-      for (let x = 0; x < pad + n; x++) {
-        line += x < pad ? ' ' : palette[(x * 3 + y * 5) % palette.length];
-      }
-      return snout ? line + '>' : line;
-    });
+  function mirrorRows(lines) {
+    return lines.map((line) => [...line].reverse().join(''));
   }
 
   const KINDS = [
     {
-      lines: carve([
-        [0, 2, false],
-        [1, 6, false],
-        [3, 12, false],
-        [4, 18, false],
-        [5, 22, true],
-        [4, 18, false],
-        [3, 12, false],
-        [1, 6, false],
-        [0, 2, false],
-      ], '#%@&=+*'),
-      color: '#6d8498',
-      dark: '#b7c4d1',
-      size: 12,
-      speed: 20,
-      lane: 0.24,
-      freq: 0.58,
-      amp: 11,
-      phase: 0.4,
-      nx: 0.72,
+      color: '#6a8498',
+      dark: '#c5d0db',
+      size: 11,
+      speed: 18,
+      lane: 0.30,
+      phase: 0.2,
+      wiggle: 4.4,
+      nx: 0.73,
       dir: 1,
     },
     {
-      lines: carve([
-        [0, 3, false],
-        [2, 7, false],
-        [3, 13, false],
-        [2, 19, false],
-        [4, 21, true],
-        [2, 19, false],
-        [3, 13, false],
-        [2, 7, false],
-        [0, 3, false],
-      ], 'XH8#%@*o'),
-      color: '#7a90a4',
-      dark: '#c3ced8',
-      size: 11,
-      speed: 15,
-      lane: 0.46,
-      freq: 0.46,
-      amp: 14,
-      phase: 2.2,
-      nx: 0.82,
+      color: '#7d93a6',
+      dark: '#d0d8e0',
+      size: 9,
+      speed: 14,
+      lane: 0.54,
+      phase: 2.4,
+      wiggle: 3.6,
+      nx: 0.84,
       dir: -1,
     },
     {
-      lines: carve([
-        [0, 2, false],
-        [1, 5, false],
-        [2, 10, false],
-        [3, 15, true],
-        [2, 10, false],
-        [1, 5, false],
-        [0, 2, false],
-      ], '@#*+=%&'),
-      color: '#61798d',
-      dark: '#aebccc',
-      size: 11,
-      speed: 24,
-      lane: 0.68,
-      freq: 0.7,
-      amp: 9,
-      phase: 4.1,
-      nx: 0.76,
+      color: '#5e788c',
+      dark: '#b7c6d4',
+      size: 10,
+      speed: 22,
+      lane: 0.76,
+      phase: 4.6,
+      wiggle: 5.1,
+      nx: 0.68,
       dir: 1,
     },
   ];
 
   const sharks = KINDS.map((kind) => ({
     ...kind,
+    rows: SHARK_ROWS,
     vx: kind.dir * kind.speed,
     facing: kind.dir,
     y: 0,
@@ -154,10 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function clamp(v, a, b) {
     return v < a ? a : v > b ? b : v;
-  }
-
-  function mirrorLine(line) {
-    return [...line].reverse().map((ch) => MIRROR[ch] || ch).join('');
   }
 
   function inside(nx, ny) {
@@ -190,19 +156,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function measureSharks() {
     sharks.forEach((shark) => {
       ctx.font = `${shark.size}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-      let max = 0;
-      shark.lines.forEach((line) => {
-        max = Math.max(max, ctx.measureText(line).width);
-      });
-      shark.halfW = max / 2;
-      shark.lineH = shark.size + 2;
-      shark.halfH = (shark.lines.length * shark.lineH) / 2;
+      shark.cw = ctx.measureText('#').width;
+      shark.ch = shark.size * 0.92;
+      shark.cols = shark.rows[0].length;
+      shark.halfW = (shark.cols * shark.cw) / 2;
+      // Extra height so the spinal bend stays inside the swim area.
+      shark.halfH = (shark.rows.length * shark.ch) / 2 + shark.ch * 2.3;
     });
   }
 
   function readObstacles() {
     const origin = hero.getBoundingClientRect();
-    const pad = 18;
+    const pad = 28;
     obstacles = [];
     hero.querySelectorAll('.hero-title, .hero-meta, .scroll-indicator').forEach((el) => {
       const r = el.getBoundingClientRect();
@@ -245,9 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const top = span.top * heroH + shark.halfH + 8;
     const bot = span.bottom * heroH - shark.halfH - 8;
     if (bot - top < 10) return null;
-    const drift = Math.sin(t * 0.17 + shark.phase) * 0.05;
-    const lane = clamp(shark.lane + drift, 0.16, 0.84);
-    const bob = reduced ? 0 : Math.sin(t * shark.freq + shark.phase) * Math.min(shark.amp, (bot - top) * 0.2);
+    const drift = Math.sin(t * 0.15 + shark.phase) * 0.04;
+    const lane = clamp(shark.lane + drift, 0.18, 0.82);
+    const bob = reduced ? 0 : Math.sin(t * 0.35 + shark.phase) * Math.min(10, (bot - top) * 0.08);
     return clamp(top + (bot - top) * lane + bob, top, bot);
   }
 
@@ -296,22 +261,54 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.setTransform(next, 0, 0, next, 0, 0);
   }
 
+  function spineGlyph(pulse) {
+    const i = Math.floor(((pulse + 1) / 2) * SPINE.length) % SPINE.length;
+    return SPINE[i];
+  }
+
   function draw(t) {
     ctx.clearRect(0, 0, heroW, heroH);
     const dark = document.body.classList.contains('dark-mode');
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
     sharks.forEach((shark) => {
       if (!shark.placed) return;
-      const lines = shark.facing < 0 ? shark.lines.map(mirrorLine) : shark.lines;
+      const grid = shark.facing < 0 ? mirrorRows(shark.rows) : shark.rows;
+      const cols = shark.cols;
+      const rows = grid.length;
       ctx.font = `${shark.size}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
       ctx.fillStyle = dark ? shark.dark : shark.color;
-      ctx.textBaseline = 'top';
-      ctx.textAlign = 'left';
       const originX = shark.nx * heroW - shark.halfW;
-      const originY = shark.y - shark.halfH;
-      lines.forEach((line, i) => {
-        const wave = reduced ? 0 : Math.sin(t * 2.1 + shark.phase + i * 0.72) * 1.15;
-        ctx.fillText(line, originX + wave, originY + i * shark.lineH);
-      });
+      const originY = shark.y - (rows * shark.ch) / 2;
+      const wig = reduced ? 0 : t * shark.wiggle + shark.phase;
+      for (let x = 0; x < cols; x++) {
+        const dist = shark.facing < 0 ? x : cols - 1 - x;
+        const bend = Math.cos(dist * 0.22 - wig);
+        const pulse = Math.sin(dist * 0.55 - wig * 1.7);
+        const dy = reduced ? 0 : Math.round(
+          Math.sin(dist * 0.22 - wig) * 1.35 +
+          Math.sin(dist * 0.5 - wig * 1.05) * 0.28
+        );
+        let mid = 0;
+        let count = 0;
+        for (let y = 0; y < rows; y++) {
+          if (grid[y][x] && grid[y][x] !== ' ') {
+            mid += y;
+            count += 1;
+          }
+        }
+        if (!count) continue;
+        mid /= count;
+        for (let y = 0; y < rows; y++) {
+          const cell = grid[y][x];
+          if (!cell || cell === ' ') continue;
+          let glyph = '#';
+          if (cell === 'o') glyph = 'o';
+          else if (Math.abs(y - mid) < 0.51) glyph = spineGlyph(pulse);
+          else if (Math.abs(bend) > 0.72 && Math.abs(y - mid) < 1.55 && ((y < mid) === (bend > 0))) glyph = '%';
+          ctx.fillText(glyph, originX + x * shark.cw, originY + (y + dy) * shark.ch);
+        }
+      }
     });
   }
 
