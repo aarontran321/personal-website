@@ -70,10 +70,10 @@ html, body {
   gap: 60px;
 }
 
-/* Dashes are painted here, behind the copy. The canvas is taken out of
-   flow and ignores the pointer so it can't widen the page, block taps,
-   or sit on top of the hero text when the window gets narrow. */
-.hero-flow {
+/* Overhead sharks swim here, behind the copy. The canvas is out of
+   flow and ignores the pointer, so it cannot widen the page, block
+   taps, or cover the intro when the window gets narrow. */
+.hero-sharks {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -84,7 +84,7 @@ html, body {
   touch-action: auto;
 }
 
-.hero-flow.is-idle {
+.hero-sharks.is-idle {
   visibility: hidden;
 }
 
