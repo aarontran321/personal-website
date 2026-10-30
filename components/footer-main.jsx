@@ -19,7 +19,10 @@ import { preloadModel } from "./model-preload.js";
 // Far enough out that the ~2.5s of transfer is usually done before the footer
 // is on screen. Only a URL string is imported above, so this file stays tiny.
 const PRELOAD_MARGIN = "2500px";
-const MOUNT_MARGIN = "600px";
+// Mount only once the strip is nearly on screen. Creating the WebGL
+// context earlier used to hitch the scroll while the projects were still
+// the thing on screen.
+const MOUNT_MARGIN = "120px";
 
 const footer = document.querySelector(".site-footer");
 
@@ -51,8 +54,24 @@ function preloadScene() {
   return modulesPromise;
 }
 
+let sceneMounted = false;
+
 async function mountScene() {
-  const [{ createRoot }, { default: FooterScene }] = await preloadScene();
+  if (sceneMounted) return;
+  // A scroll gesture is a bad moment to compile shaders. Wait until it
+  // settles, then mount. script.js owns the .is-scrolling class.
+  if (document.documentElement.classList.contains("is-scrolling")) {
+    window.setTimeout(mountScene, 160);
+    return;
+  }
+  const modules = await preloadScene();
+  if (sceneMounted) return;
+  if (document.documentElement.classList.contains("is-scrolling")) {
+    window.setTimeout(mountScene, 160);
+    return;
+  }
+  sceneMounted = true;
+  const [{ createRoot }, { default: FooterScene }] = modules;
   const mount = document.createElement("div");
   mount.className = "footer-scene";
   footer.appendChild(mount);

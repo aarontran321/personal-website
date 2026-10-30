@@ -1,3 +1,29 @@
+// ==========================================================
+// SCROLL GATE
+// While the page is moving, pause work that fights the compositor:
+// CSS animations (via .is-scrolling), project videos, and — in the
+// React islands — the footer scene. Resume shortly after the last
+// scroll event so a flick still counts as one gesture.
+// ==========================================================
+const onScrollStart = [];
+const onScrollEnd = [];
+let pageScrolling = false;
+let scrollIdleTimer = 0;
+
+window.addEventListener('scroll', () => {
+  if (!pageScrolling) {
+    pageScrolling = true;
+    document.documentElement.classList.add('is-scrolling');
+    onScrollStart.forEach((fn) => fn());
+  }
+  clearTimeout(scrollIdleTimer);
+  scrollIdleTimer = setTimeout(() => {
+    pageScrolling = false;
+    document.documentElement.classList.remove('is-scrolling');
+    onScrollEnd.forEach((fn) => fn());
+  }, 140);
+}, { passive: true });
+
 // Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.location.hash) {
@@ -333,21 +359,38 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  function playVideo(video) {
+    if (!video.src && video.dataset.src) {
+      video.src = video.dataset.src;
+    }
+    // Leave the last frame up. Dropping .playing here would fade back to
+    // the poster for the whole gesture.
+    if (pageScrolling) return;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => video.classList.add('playing')).catch(() => {});
+    } else {
+      video.classList.add('playing');
+    }
+  }
+
+  const inView = new Set();
+
+  onScrollStart.push(() => {
+    inView.forEach((video) => video.pause());
+  });
+  onScrollEnd.push(() => {
+    inView.forEach((video) => playVideo(video));
+  });
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       const video = entry.target;
       if (entry.isIntersecting) {
-        // lazily attach the source the first time it comes into view
-        if (!video.src && video.dataset.src) {
-          video.src = video.dataset.src;
-        }
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => video.classList.add('playing')).catch(() => {});
-        } else {
-          video.classList.add('playing');
-        }
+        inView.add(video);
+        playVideo(video);
       } else {
+        inView.delete(video);
         video.pause();
         video.classList.remove('playing');
       }
@@ -392,6 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const clip = clips[i];
       if (!clip.src && clip.dataset.src) clip.src = clip.dataset.src;
       if (reset) clip.currentTime = 0;
+      // Intersection can flip true mid-scroll. Don't start a decode then.
+      if (pageScrolling) return;
       clip.play().catch(() => {});
     }
 
@@ -409,6 +454,16 @@ document.addEventListener('DOMContentLoaded', () => {
       activateClip(index, true);
       return;
     }
+
+    onScrollStart.push(() => {
+      if (inView) pauseAll();
+    });
+    onScrollEnd.push(() => {
+      if (!inView) return;
+      const clip = clips[index];
+      if (clip && clip.ended) activateClip((index + 1) % clips.length, true);
+      else activateClip(index, false);
+    });
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -487,6 +542,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function tick() {
+    if (pageScrolling) {
+      setTimeout(tick, 160);
+      return;
+    }
+
     const currentWord = words[wordIndex];
 
     if (charIndex <= currentWord.length) {

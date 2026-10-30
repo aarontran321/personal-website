@@ -5,11 +5,25 @@
 
 const root = document.getElementById("about-gallery-root");
 
+let galleryMounted = false;
+
 async function mountGallery() {
-  const [{ createRoot }, { default: InfiniteGallery }] = await Promise.all([
+  if (galleryMounted) return;
+  if (document.documentElement.classList.contains("is-scrolling")) {
+    window.setTimeout(mountGallery, 160);
+    return;
+  }
+  const modules = await Promise.all([
     import("react-dom/client"),
     import("./InfiniteGallery.jsx"),
   ]);
+  if (galleryMounted) return;
+  if (document.documentElement.classList.contains("is-scrolling")) {
+    window.setTimeout(mountGallery, 160);
+    return;
+  }
+  galleryMounted = true;
+  const [{ createRoot }, { default: InfiniteGallery }] = modules;
   createRoot(root).render(<InfiniteGallery />);
 }
 

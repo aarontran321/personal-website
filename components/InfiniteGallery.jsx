@@ -163,6 +163,7 @@ function GalleryCard({ item, index, tileW, tileH, parallaxX, parallaxY }) {
           alt={item.title}
           draggable={false}
           loading="lazy"
+          decoding="async"
         />
       </div>
       <figcaption className="gallery-card-caption">

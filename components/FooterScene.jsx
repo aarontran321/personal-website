@@ -146,6 +146,9 @@ function CharacterRig({ pointerRef, wrapperRef }) {
     const wrapper = wrapperRef.current;
     const pointer = pointerRef.current;
     if (!g || !wrapper) return;
+    // Frameloop flips to "never" on scroll, but that commit lands a frame
+    // later. Bail before the layout reads in the meantime.
+    if (document.documentElement.classList.contains("is-scrolling")) return;
 
     // A backgrounded/throttled tab can hand useFrame one huge delta on the
     // frame it regains focus. The position step below is already clamped to
@@ -264,6 +267,10 @@ function CharacterRig({ pointerRef, wrapperRef }) {
         scale={viewport.width}
         blur={2.2}
         far={2.5}
+        resolution={256}
+        // The shadow map is a full extra scene render. While the character
+        // is standing still one frame is enough; walking refreshes it.
+        frames={mode === "idle" ? 8 : Infinity}
       />
     </>
   );
@@ -273,6 +280,9 @@ export default function FooterScene() {
   const wrapperRef = useRef(null);
   // Mutable pointer state shared with the R3F frame loop — no re-renders.
   const pointerRef = useRef({ x: -9999, y: -9999, near: false });
+  // "never" while the strip is offscreen or the page is scrolling, so the
+  // render loop and its per-frame layout reads don't run under the scroll.
+  const [frameloop, setFrameloop] = useState("always");
 
   useEffect(() => {
     // "Near" is judged against the whole dark .site-footer area, not just
@@ -283,6 +293,10 @@ export default function FooterScene() {
     // that's the actual render surface.
     const footerEl = wrapperRef.current?.closest(".site-footer");
     const handleMove = (e) => {
+      if (document.documentElement.classList.contains("is-scrolling")) {
+        pointerRef.current.near = false;
+        return;
+      }
       const rect = footerEl?.getBoundingClientRect();
       if (!rect) return;
       const p = pointerRef.current;
@@ -306,10 +320,40 @@ export default function FooterScene() {
     // that's what makes tap-to-walk and tap-the-character-to-cast work.
     window.addEventListener("pointerdown", handleMove);
     document.documentElement.addEventListener("pointerleave", handleLeave);
+
+    const footerForVisibility = wrapperRef.current?.closest(".site-footer");
+    let visible = true;
+    let scrolling = false;
+    let scrollTimer = 0;
+    const applyLoop = () => {
+      const next = visible && !scrolling ? "always" : "never";
+      setFrameloop((prev) => (prev === next ? prev : next));
+    };
+    const io = new IntersectionObserver((entries) => {
+      visible = entries.some((entry) => entry.isIntersecting);
+      applyLoop();
+    });
+    if (footerForVisibility) io.observe(footerForVisibility);
+    const onScroll = () => {
+      if (!scrolling) {
+        scrolling = true;
+        applyLoop();
+      }
+      clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(() => {
+        scrolling = false;
+        applyLoop();
+      }, 140);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
     return () => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerdown", handleMove);
       document.documentElement.removeEventListener("pointerleave", handleLeave);
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(scrollTimer);
+      io.disconnect();
     };
   }, []);
 
@@ -321,7 +365,8 @@ export default function FooterScene() {
     >
       <Canvas
         gl={{ alpha: true, antialias: true }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
+        frameloop={frameloop}
         orthographic
         camera={{ position: [0, CAM_Y, CAM_Z], near: 0.1, far: 100 }}
       >
