@@ -264,6 +264,7 @@ function initPond(hero) {
         if (clearance(x, y) < need) continue;
         if (!anyDist && Math.hypot(x - from.x, y - from.y) < 220 * S) continue; // longer swims
         if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 200 * S)) continue;
+        if (pass < 2 && pellets.some((p) => Math.hypot(p.x - x, p.y - y) < 230 * S)) continue; // leave the feeding spot to the feeders
         if (pass === 0 && !anyDist && !lineOfSight(from, { x, y }, need * 0.7)) continue;
         return { x, y };
       }
@@ -408,10 +409,16 @@ function initPond(hero) {
     // food beats wandering
     k.eatCd = Math.max(0, (k.eatCd || 0) - dt);
     let food = null;
+    k.fullT = Math.max(0, (k.fullT || 0) - dt);
     const anyFood = pellets.some((p) => p.landed && p.reach && dist(p, head) < 450 * S);
+    if (anyFood && !k.sawFood && Math.random() < 0.35) k.fullT = rand(6, 12); // not hungry this time
+    k.sawFood = anyFood;
     if (!anyFood) k.notice = rand(0.2, 1.4); // each koi takes its own moment to notice
     else k.notice = Math.max(0, k.notice - dt);
-    if (anyFood && k.notice === 0) {
+    // only about half the pond crowds in at once; the rest keep cruising
+    const feeders = koi.filter((o) => o !== k && o.food).length;
+    const seat = k.food || feeders < Math.max(1, Math.ceil(koi.length / 2));
+    if (anyFood && k.notice === 0 && k.fullT === 0 && seat) {
       // nearest pellet, but one another koi is already after counts as farther,
       // so they fan out instead of all tracing the same line
       let best = Infinity;
@@ -457,6 +464,20 @@ function initPond(hero) {
           ax += (dx / d) * f;
           ay += (dy / d) * f;
         }
+      }
+    }
+    // koi that aren't eating give the feeding spot a wide berth
+    if (!food && pellets.length) {
+      let cx = 0, cy = 0, n = 0;
+      for (const p of pellets) {
+        if (dist(p, head) < 220 * S) { cx += p.x; cy += p.y; n++; }
+      }
+      if (n) {
+        cx /= n; cy /= n;
+        const dx = head.x - cx, dy = head.y - cy, d = Math.hypot(dx, dy) || 1;
+        const f = ((1 - Math.min(1, d / (220 * S))) ** 2) * 1.6;
+        ax += (dx / d) * f;
+        ay += (dy / d) * f;
       }
     }
     let diff = Math.atan2(ay, ax) - k.heading;
@@ -512,6 +533,14 @@ function initPond(hero) {
         });
       }
       k.eatCd = rand(0.7, 1.4);
+      // after a few bites it's had enough and swims off, making room for others
+      k.bites = (k.bites || 0) + 1;
+      if (k.bites >= (k.appetite ||= Math.ceil(rand(1.5, 4)))) {
+        k.fullT = rand(8, 15);
+        k.bites = 0;
+        k.appetite = Math.ceil(rand(1.5, 4));
+        k.waypoint = null; // head somewhere new
+      }
       k.food = null;
     }
     // the snout bumps floating feed aside
@@ -978,7 +1007,7 @@ function initPond(hero) {
         k.spine.forEach((p, j) => { p.x = x; p.y = y + j * seg(); });
         k.heading = -Math.PI / 2;
       },
-      state: () => koi.map((k) => ({ away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
+      state: () => koi.map((k) => ({ feeding: !!k.food, away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
     };
   }
 }
