@@ -78,46 +78,25 @@ html, body {
   z-index: 0;
 }
 
-/* Koi pond feeding hints */
-.koi-hint,
+/* Koi pond: "click to feed" label that follows the cursor */
 .koi-cursor-label {
   position: absolute;
+  left: 0;
+  top: 0;
   z-index: 2;
   pointer-events: none;
   display: flex;
   align-items: center;
   gap: 7px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--nav-bg);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--school-color);
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.35s ease;
-}
-
-.koi-hint {
-  right: 48px;
-  bottom: 48px;
-  padding: 8px 14px;
-  font-size: 13px;
-  color: var(--text-color);
-  border: 1px dashed var(--card-border);
-  border-radius: 6px;
-  background: var(--nav-bg);
-}
-
-.koi-hint.is-on {
-  opacity: 1;
-  animation: koi-hint-bob 2.4s ease-in-out infinite;
-}
-
-.koi-cursor-label {
-  left: 0;
-  top: 0;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--nav-bg);
   transition: opacity 0.2s ease;
 }
 
@@ -132,18 +111,8 @@ html, body {
   box-shadow: 2px 2px 0 rgba(148, 163, 184, 0.45);
 }
 
-@keyframes koi-hint-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .koi-hint.is-on { animation: none; }
-}
-
-@media (max-width: 819px) {
-  .koi-canvas,
-  .koi-hint,
+/* no cursor on touch screens, so no cursor label */
+@media (hover: none) {
   .koi-cursor-label { display: none; }
 }
 

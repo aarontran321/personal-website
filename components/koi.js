@@ -12,7 +12,7 @@
 // - Text is sacred: heads steer around every text block, spine points are
 //   pushed out of them, and no tile, glyph or ripple is ever drawn over one.
 //
-// Size and count scale with the window; with no open water (phones) it hides.
+// Size and count scale with the window, down to phone widths.
 
 // Real koi colours.
 const WHITE = "#efebe3", RED = "#e5432b", ORANGE = "#f2711c", BLACK = "#1f1d1d";
@@ -34,7 +34,6 @@ function initPond(hero) {
   const N = 28; // spine segments
   const CLEAR = 14; // minimum gap kept between a koi and any text
   const TOP_BOUND = 90; // stay below the fixed site header
-  const MIN_WIDTH = 820;
   const BODY_GLYPHS = " .:-=+";
   const MAX_PELLETS = 160;
 
@@ -55,18 +54,14 @@ function initPond(hero) {
   const kctx = koiLayer.getContext("2d");
   let tileImg = null, tileBuf = null, gapPattern = null;
 
-  // Feeding affordances, shown only until the first feed: a corner hint and a
-  // small "click to feed" label beside the cursor over open water. The pointer
-  // cursor over open water stays after that.
-  const hint = document.createElement("div");
-  hint.className = "koi-hint";
-  hint.setAttribute("aria-hidden", "true");
-  hint.innerHTML = '<span class="koi-pellet"></span> click the water to feed the koi';
+  // Feeding affordance: a small "click to feed" label beside the cursor over
+  // open water, shown only until the first feed. The pointer cursor over open
+  // water stays after that.
   const label = document.createElement("div");
   label.className = "koi-cursor-label";
   label.setAttribute("aria-hidden", "true");
   label.innerHTML = '<span class="koi-pellet"></span> click to feed';
-  hero.append(hint, label);
+  hero.append(label);
 
   const FED_KEY = "koi-fed-count";
   let fedMemo = null;
@@ -78,8 +73,7 @@ function initPond(hero) {
   function noteFed() {
     fedMemo = fedCount() + 1;
     try { localStorage.setItem(FED_KEY, String(fedMemo)); } catch { /* private mode etc. */ }
-    hint.classList.remove("is-on"); // one feed and both hints are gone for good
-    label.classList.remove("is-on");
+    label.classList.remove("is-on"); // one feed and the hint is gone for good
   }
   function onHover(e) {
     const spot = feedSpot(e);
@@ -403,9 +397,9 @@ function initPond(hero) {
 
   // Make the number of koi match the space; hide the pond if there's no room.
   function reconcile() {
-    active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
+    active = !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
     canvas.style.display = active ? "" : "none";
-    hint.style.display = label.style.display = active ? "" : "none";
+    label.style.display = active ? "" : "none";
     if (!active) { koi = []; pellets = []; ripples = []; bubbles = []; return; }
     for (const k of koi) {
       const h = k.spine[0];
@@ -499,8 +493,9 @@ function initPond(hero) {
     if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
       // now and then a koi wanders off past the right edge and comes back later,
       // so the visible pond never gets crowded; at most a third are away at once
+      // (never with only two koi, so small screens always show both)
       const awayNow = koi.filter((o) => o.away).length;
-      if (!k.away && Math.random() < 0.18 && awayNow < Math.max(1, Math.floor(koi.length / 3))) {
+      if (!k.away && koi.length >= 3 && Math.random() < 0.18 && awayNow < Math.floor(koi.length / 3)) {
         k.waypoint = { x: W + rand(140, 280) * S, y: rand(TOP_BOUND + 60 * S, H - 60 * S) };
         k.away = true;
       } else {
@@ -1016,6 +1011,9 @@ function initPond(hero) {
     KS = 1;
 
     const deepTint = dark ? [40, 52, 70] : [150, 172, 196]; // murky blue-grey
+    // on narrow screens the text covers most of the pond, so "deep" koi stay
+    // more visible there (they're behind the text, so it stays readable)
+    const deepDim = 0.6 + 0.26 * clamp((W - 700) / 500, 0, 1);
 
     // feed: little bobbing pellets, each with its own shadow (under the koi)
     const ps = Math.max(4, Math.round(5 * S + 1));
@@ -1062,7 +1060,7 @@ function initPond(hero) {
       const col = key & 0xffff, row = key >>> 16;
       if (col >= cols || row >= rows) continue;
       const dp = deep[row * cols + col] || 0;
-      const vis = 1 - 0.86 * dp;
+      const vis = 1 - deepDim * dp;
       const fill = dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill;
       if (c.kind === "body") {
         put(col, row, fill, 0.97 * c.edge * c.fade * vis);
@@ -1170,7 +1168,6 @@ function initPond(hero) {
     hero.addEventListener("click", onClick);
     hero.addEventListener("mousemove", onHover);
     hero.addEventListener("mouseleave", () => { hero.style.cursor = ""; label.classList.remove("is-on"); });
-    if (fedCount() === 0) hint.classList.add("is-on");
   }
   resize();
 
