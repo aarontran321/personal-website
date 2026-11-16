@@ -188,6 +188,7 @@ function initPond(hero) {
       spine: [], target: { x: at.x - 40, y: at.y }, waypoint: null,
       heading: Math.PI, speed: 30 * S, beat: 0.4, glide: 0,
       phase: rand(0, 6), fade: reduceMotion ? 1 : 0, tempo: rand(0.85, 1.15),
+      cramp: 0, progT: 0, progAt: { x: at.x, y: at.y }, leaving: false, eatCd: 0,
     };
     for (let i = 0; i <= N; i++) k.spine.push({ x: at.x + i * seg(), y: at.y });
     for (let i = 0; i <= N; i++) pushOut(k.spine[i], envelope((i / N) * TOTAL));
@@ -213,7 +214,21 @@ function initPond(hero) {
       .forEach((el) => add(el.getBoundingClientRect()));
     obstacles = out;
     const big = 1e5;
-    walls = out.concat([
+    // close off the slivers beside the text block (the left margin and the lane
+    // above the title): they're too narrow to swim and a koi can get pinned there
+    let tx0 = Infinity, ty0 = Infinity, tx1 = -Infinity;
+    hero.querySelectorAll(".hero-title, .edu-line, .intern-card, .hero-bullets").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1) return;
+      tx0 = Math.min(tx0, r.left - hr.left);
+      ty0 = Math.min(ty0, r.top - hr.top);
+      tx1 = Math.max(tx1, r.right - hr.left);
+    });
+    const slivers = tx0 === Infinity ? [] : [
+      { x0: -big, y0: -big, x1: tx0, y1: big }, // left margin
+      { x0: -big, y0: -big, x1: tx1, y1: ty0 }, // lane above the title
+    ];
+    walls = out.concat(slivers, [
       { x0: -big, y0: -big, x1: big, y1: TOP_BOUND }, // top (header)
       { x0: -big, y0: H, x1: big, y1: big }, // bottom
       { x0: -big, y0: -big, x1: 0, y1: big }, // left
@@ -274,6 +289,10 @@ function initPond(hero) {
     active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
     canvas.style.display = active ? "" : "none";
     if (!active) { koi = []; pellets = []; ripples = []; return; }
+    for (const k of koi) {
+      const h = k.spine[0];
+      if (clearance(h.x, h.y) < roomNeed() * 0.45) k.leaving = true;
+    }
     const want = desiredCount();
     while (koi.length > want) koi.pop();
     while (koi.length < want) {
@@ -337,7 +356,7 @@ function initPond(hero) {
 
   // ---- simulation ---------------------------------------------------------
   function updateKoi(k, dt) {
-    k.fade = Math.min(1, k.fade + dt / 1.5);
+    k.fade = k.leaving ? Math.max(0, k.fade - dt / 0.6) : Math.min(1, k.fade + dt / 1.5);
     const head = k.spine[0];
     const t = k.target;
 
@@ -370,8 +389,9 @@ function initPond(hero) {
     const goalD = dist(goal, head);
 
     // steering: toward the goal, away from text and other koi
-    let ax = (goal.x - head.x) / (goalD || 1);
-    let ay = (goal.y - head.y) / (goalD || 1);
+    const pull = food && k.eatCd > 0 ? 0.25 : 1; // just ate: drift on, don't pirouette
+    let ax = ((goal.x - head.x) / (goalD || 1)) * pull;
+    let ay = ((goal.y - head.y) / (goalD || 1)) * pull;
     const fx = Math.cos(k.heading), fy = Math.sin(k.heading);
     const range = 95 * S + 20;
     for (const probe of [0, 35 * S, 70 * S]) {
@@ -401,17 +421,18 @@ function initPond(hero) {
     }
     let diff = Math.atan2(ay, ax) - k.heading;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    // turning radius grows with speed so the body can't fold into a U
-    const agile = food && goalD < 80 * S ? 2.2 : 1;
-    const maxTurn = Math.max(1, k.speed / (38 * S)) * agile * dt;
+    // fixed turning radius: turn rate scales with speed (slow koi turn slowly)
+    const maxTurn = clamp(k.speed / (38 * S), 0.7, 2.2) * dt;
     k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * 2.1 + k.phase) * 0.12 * dt;
 
     // burst-and-glide: tail beats hard to speed up, then the koi coasts
     let vmax, demand;
     if (food) {
-      // eager but not a vacuum: after each gulp the koi noses around slowly
-      vmax = clamp(goalD * 1.2, 15 * S, 105 * S);
-      demand = k.eatCd > 0 ? 0.3 : 0.9;
+      // eager but unhurried: brake to turn toward food that's off to the side,
+      // and coast for a moment after each gulp
+      vmax = clamp(goalD * 0.9, 12 * S, 85 * S);
+      if (Math.abs(diff) > 0.9) vmax *= 0.4;
+      demand = k.eatCd > 0 ? 0.12 : 0.75;
       k.glide = 0;
     } else {
       vmax = clamp(goalD * 1.1, 22 * S, 80 * S) * k.tempo;
@@ -425,7 +446,18 @@ function initPond(hero) {
     head.x += Math.cos(k.heading) * k.speed * dt;
     head.y += Math.sin(k.heading) * k.speed * dt;
     pushOut(head, envelope(0));
-    k.phase += dt * (2.2 + 7 * k.beat);
+    k.phase += dt * (1.8 + 3.2 * Math.min(1.6, k.speed / (55 * S)));
+
+    // trapped? (e.g. the text reflowed around it and it's pinned in a gap)
+    if (clearance(head.x, head.y) < envelope(0) + 12 * S) k.cramp += dt;
+    else k.cramp = Math.max(0, k.cramp - dt * 2);
+    k.progT += dt;
+    if (k.progT > 4) {
+      const moved = dist(head, k.progAt);
+      if (k.cramp > 2 && moved < 30 * S) k.leaving = true;
+      k.progT = 0;
+      k.progAt = { x: head.x, y: head.y };
+    }
 
     // eat one pellet per gulp, then a pause before the next
     if (food && k.eatCd === 0 && dist(food, head) < 9 * S + 5) {
@@ -468,11 +500,12 @@ function initPond(hero) {
     for (const r of ripples) r.age += dt;
     ripples = ripples.filter((r) => r.age < r.life);
     for (const k of koi) updateKoi(k, dt);
-    // a koi whose head got trapped by a layout change starts over somewhere open
+    // a trapped koi fades out and reappears somewhere open
     for (let i = 0; i < koi.length; i++) {
-      const h = koi[i].spine[0];
-      if (clearance(h.x, h.y, obstacles) < 2) {
-        const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, koi[i], true);
+      const k = koi[i], h = k.spine[0];
+      if (clearance(h.x, h.y, obstacles) < 2) k.leaving = true;
+      if (k.leaving && k.fade === 0) {
+        const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, k, true);
         if (at) koi[i] = newKoi(at);
       }
     }
@@ -533,7 +566,7 @@ function initPond(hero) {
     const patch = rgb(k.v.patch);
     const spot = k.v.spot ? rgb(k.v.spot) : null;
     const fin = rgb(k.v.fin);
-    const amp = (2.5 + 7 * k.beat) * S;
+    const amp = (2.5 + 3.5 * k.beat + 2.5 * Math.min(1, k.speed / (80 * S))) * S;
 
     const q = k.spine.map((p, i) => {
       const s = (i / N) * TOTAL;
@@ -804,6 +837,12 @@ function initPond(hero) {
       },
       feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
       heads: () => koi.map((k) => [k.spine[0].x | 0, k.spine[0].y | 0, k.v.name]),
+      place(i, x, y) {
+        const k = koi[i];
+        k.spine.forEach((p, j) => { p.x = x; p.y = y + j * seg(); });
+        k.heading = -Math.PI / 2;
+      },
+      state: () => koi.map((k) => ({ fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
     };
   }
 }
