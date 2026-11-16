@@ -828,20 +828,22 @@ function initPond(hero) {
   }
 
   // Eating bubbles, in ASCII: `.` -> `o` -> `O` as they swell and rise, then
-  // `*` as they pop, with `'` specks flying out. Snapped to the tile grid.
+  // `*` as they pop, with `'` specks flying out. Snapped to the tile grid,
+  // white with only a faint edge.
   function drawBubbles(dark) {
     const ink = dark ? "#e2e8f0" : "#475569";
     const at = (x, y, ch, px, alpha) => {
       const col = Math.floor(x / CELL), row = Math.floor(y / CELL);
       if (isBlocked(col, row)) return;
       ctx.font = `bold ${px}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-      ctx.globalAlpha = alpha;
       const x0 = (col + 0.5) * CELL, y0 = (row + 0.5) * CELL;
-      ctx.strokeText(ch, x0, y0); // dark outline so it reads on fish and water alike
+      ctx.globalAlpha = alpha * 0.25;
+      ctx.strokeText(ch, x0, y0); // barely-there edge so white still shows on white
+      ctx.globalAlpha = alpha;
       ctx.fillText(ch, x0, y0);
     };
     ctx.strokeStyle = ink;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 1;
     ctx.lineJoin = "round";
     ctx.fillStyle = "#ffffff";
     for (const b of bubbles) {
