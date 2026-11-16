@@ -51,6 +51,7 @@ function initPond(hero) {
   let obstacles = []; // text rects, hero-local coords
   let walls = []; // obstacles + out-of-bounds slabs (physics only)
   let blocked = new Uint8Array(0); // per-tile: 1 = touches text
+  let deep = new Float32Array(0); // per-tile: 0 open water .. 1 under the text
   let koi = [], pellets = [], ripples = [], bubbles = [], waterDots = [];
   let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
@@ -221,26 +222,13 @@ function initPond(hero) {
       .forEach((el) => add(el.getBoundingClientRect()));
     obstacles = out;
     const big = 1e5;
-    // close off the slivers beside the text block (the left margin and the lane
-    // above the title): they're too narrow to swim and a koi can get pinned there
-    let tx0 = Infinity, ty0 = Infinity, tx1 = -Infinity;
-    hero.querySelectorAll(".hero-title, .edu-line, .intern-card, .hero-bullets").forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width < 1) return;
-      tx0 = Math.min(tx0, r.left - hr.left);
-      ty0 = Math.min(ty0, r.top - hr.top);
-      tx1 = Math.max(tx1, r.right - hr.left);
-    });
-    const slivers = tx0 === Infinity ? [] : [
-      { x0: -big, y0: -big, x1: tx0, y1: big }, // left margin
-      { x0: -big, y0: -big, x1: tx1, y1: ty0 }, // lane above the title
-    ];
-    walls = out.concat(slivers, [
+    // koi can swim anywhere, under the text included; only the pond's edges stop them
+    walls = [
       { x0: -big, y0: -big, x1: big, y1: TOP_BOUND }, // top (header)
       { x0: -big, y0: H, x1: big, y1: big }, // bottom
       { x0: -big, y0: -big, x1: 0, y1: big }, // left
       { x0: W + 380 * S, y0: -big, x1: big, y1: big }, // right: the pond carries on off-screen
-    ]);
+    ];
     // tile mask: any tile within 4px of text is off-limits for drawing
     cols = Math.ceil(W / CELL);
     rows = Math.ceil(H / CELL);
@@ -250,18 +238,41 @@ function initPond(hero) {
       const r0 = Math.max(0, Math.floor((r.y0 - 4) / CELL)), r1 = Math.min(rows - 1, Math.floor((r.y1 + 4) / CELL));
       for (let y = r0; y <= r1; y++) blocked.fill(1, y * cols + c0, y * cols + c1 + 1);
     }
+    // "deep water" under and around the text: koi there sink out of view
+    deep = new Float32Array(cols * rows);
+    const FALL = 70;
+    for (const r of out) {
+      const c0 = Math.max(0, Math.floor((r.x0 - FALL) / CELL)), c1 = Math.min(cols - 1, Math.floor((r.x1 + FALL) / CELL));
+      const r0 = Math.max(0, Math.floor((r.y0 - FALL) / CELL)), r1 = Math.min(rows - 1, Math.floor((r.y1 + FALL) / CELL));
+      for (let y = r0; y <= r1; y++) {
+        for (let x = c0; x <= c1; x++) {
+          const d = rectDist((x + 0.5) * CELL, (y + 0.5) * CELL, r);
+          const v = 1 - clamp((d - 6) / FALL, 0, 1);
+          const i = y * cols + x;
+          if (v > deep[i]) deep[i] = v;
+        }
+      }
+    }
   }
 
   // Random open spot with room for a koi, preferring the right side and
   // keeping away from other koi's targets.
-  function pickWaypoint(from, self, anyDist = false) {
+  function pickWaypoint(from, self, anyDist = false, heading = null) {
     const need = roomNeed();
     for (let pass = 0; pass < 3; pass++) {
       for (let i = 0; i < 70; i++) {
-        const x = pass < 2 ? W * rand(0.35, 1) : rand(0, W);
+        const x = rand(0, W);
         const y = rand(TOP_BOUND, H);
         if (x > W - need * 0.8) continue; // on-screen spots stay fully visible
+        if (heading !== null && pass < 2) {
+          // keep going roughly the way it's facing: no U-turns to reach the next spot
+          let b = Math.atan2(y - from.y, x - from.x) - heading;
+          b = Math.atan2(Math.sin(b), Math.cos(b));
+          if (Math.abs(b) > (pass === 0 ? 1.4 : 2.0)) continue;
+        }
         if (clearance(x, y) < need) continue;
+        // mostly open water, but now and then a dive under the text
+        if (pass < 2 && Math.random() < 0.7 && clearance(x, y, obstacles) < need * 0.8) continue;
         if (!anyDist && Math.hypot(x - from.x, y - from.y) < 220 * S) continue; // longer swims
         if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 200 * S)) continue;
         if (pass < 2 && pellets.some((p) => Math.hypot(p.x - x, p.y - y) < 230 * S)) continue; // leave the feeding spot to the feeders
@@ -378,13 +389,11 @@ function initPond(hero) {
     const head = k.spine[0];
     const t = k.target;
 
-    // the wander target must always sit in open water; if the layout moved it
-    // into a corner or onto text, relocate it instead of chasing it there
-    if (clearance(t.x, t.y) < roomNeed() * 0.6) {
-      const p = pickWaypoint(head, k, true);
-      if (p) { t.x = p.x; t.y = p.y; k.waypoint = null; }
-    }
-    if (!k.waypoint || dist(k.waypoint, t) < 10) {
+    // Wandering: swim straight for a destination and pick the next one, ahead
+    // of the koi, before arriving. (A slow-moving target let koi catch up and
+    // circle it, which is what made them spin.)
+    const arrive = 90 * S;
+    if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
       // now and then a koi wanders off past the right edge and comes back later,
       // so the visible pond never gets crowded; at most a third are away at once
       const awayNow = koi.filter((o) => o.away).length;
@@ -392,19 +401,11 @@ function initPond(hero) {
         k.waypoint = { x: W + rand(140, 280) * S, y: rand(TOP_BOUND + 60 * S, H - 60 * S) };
         k.away = true;
       } else {
-        k.waypoint = pickWaypoint(t, k) || k.waypoint;
+        k.waypoint = pickWaypoint(head, k, false, k.heading) || pickWaypoint(head, k, true) || k.waypoint;
         k.away = false;
       }
     }
-    if (k.waypoint) {
-      const dx = k.waypoint.x - t.x, dy = k.waypoint.y - t.y;
-      const d = Math.hypot(dx, dy) || 1;
-      const v = (dist(t, head) > 120 * S ? 8 : 45) * k.tempo;
-      const wob = Math.sin(time * 1.3 + k.phase) * 0.35;
-      t.x += (dx / d - (dy / d) * wob) * v * dt;
-      t.y += (dy / d + (dx / d) * wob) * v * dt;
-      pushOut(t, roomNeed() * 0.7);
-    }
+    if (k.waypoint) { t.x = k.waypoint.x; t.y = k.waypoint.y; } // other koi read this to spread out
 
     // food beats wandering
     k.eatCd = Math.max(0, (k.eatCd || 0) - dt);
@@ -426,13 +427,23 @@ function initPond(hero) {
         if (!p.landed || !p.reach) continue;
         const d = dist(p, head);
         if (d > 450 * S) continue;
+        let b = Math.atan2(p.y - head.y, p.x - head.x) - k.heading;
+        b = Math.abs(Math.atan2(Math.sin(b), Math.cos(b)));
+        // only food it can reach with a gentle curve: roughly ahead, or far enough
+        // away to swing round to. Anything else waits for the next pass.
+        if (b > (p === k.food ? 1.6 : 1) && d < 170 * S) continue; // a little stickier once chosen
         const taken = koi.some((o) => o !== k && o.food === p);
-        const score = d + (taken ? 140 * S : 0) + (p === k.food ? -25 * S : 0);
+        const score = d + b * 90 * S + (taken ? 140 * S : 0) + (p === k.food ? -25 * S : 0);
         if (score < best) { best = score; food = p; }
       }
     }
     k.food = food;
-    const goal = food || t;
+    // food about but none it can reach right now: keep swimming straight on and
+    // come round for another pass, rather than turning back toward its old spot
+    const passing = !food && anyFood && k.fullT === 0 && seat;
+    const goal = food || (passing
+      ? { x: head.x + Math.cos(k.heading) * 160 * S, y: head.y + Math.sin(k.heading) * 160 * S }
+      : t);
     const goalD = dist(goal, head);
 
     // steering: toward the goal, away from text and other koi
@@ -440,8 +451,8 @@ function initPond(hero) {
     let ax = ((goal.x - head.x) / (goalD || 1)) * pull;
     let ay = ((goal.y - head.y) / (goalD || 1)) * pull;
     const fx = Math.cos(k.heading), fy = Math.sin(k.heading);
-    const range = 95 * S + 20;
-    for (const probe of [0, 35 * S, 70 * S]) {
+    const range = 130 * S + 20;
+    for (const probe of [0, 50 * S, 100 * S, 150 * S]) { // look further ahead: turns are wider now
       const px = head.x + fx * probe, py = head.y + fy * probe;
       for (const r of walls) {
         const cx = clamp(px, r.x0, r.x1), cy = clamp(py, r.y0, r.y1);
@@ -458,9 +469,9 @@ function initPond(hero) {
           const q = o.spine[i];
           const dx = px - q.x, dy = py - q.y;
           const d = Math.hypot(dx, dy);
-          const rr = 80 * S;
+          const rr = 160 * S;
           if (d >= rr || d < 0.001) continue;
-          const f = ((1 - d / rr) ** 2) * (food ? 0.5 : 1.4);
+          const f = ((1 - d / rr) ** 2) * (food ? 0.9 : 2.6);
           ax += (dx / d) * f;
           ay += (dy / d) * f;
         }
@@ -483,7 +494,8 @@ function initPond(hero) {
     let diff = Math.atan2(ay, ax) - k.heading;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     // fixed turning radius: turn rate scales with speed (slow koi turn slowly)
-    const maxTurn = clamp(k.speed / (38 * S * k.turnR), 0.6, 2.2) * dt;
+    // wide, graceful turns: the circle is a few body-widths across, never a spin
+    const maxTurn = clamp(k.speed / (70 * S * k.turnR * (food ? 1.15 : 1)), 0.35, 1.6) * dt;
     k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * k.wobF + k.wobA * 40) * k.wobA * dt;
 
     // burst-and-glide: tail beats hard to speed up, then the koi coasts
@@ -491,12 +503,16 @@ function initPond(hero) {
     if (food) {
       // eager but unhurried: brake to turn toward food that's off to the side,
       // and coast for a moment after each gulp
-      vmax = clamp(goalD * 0.9, 12 * S, 85 * S);
-      if (Math.abs(diff) > 0.9) vmax *= 0.4;
+      vmax = clamp(goalD * 0.9, 20 * S, 100 * S);
       demand = k.eatCd > 0 ? 0.12 : 0.75;
       k.glide = 0;
+    } else if (k.dashT > 0) {
+      k.dashT -= dt;
+      vmax = 130 * S;
+      demand = 1;
+      k.glide = 0;
     } else {
-      vmax = clamp(goalD * 1.1, 22 * S, 80 * S) * k.tempo;
+      vmax = clamp(goalD * 0.8, 40 * S, 100 * S) * k.tempo;
       k.glide = Math.max(0, k.glide - dt);
       if (k.glide === 0 && Math.random() < dt * 0.15) k.glide = rand(1, 2.5);
       demand = k.glide > 0 ? 0.04 : clamp((vmax - k.speed) / (25 * S), 0, 1) * 0.8 + 0.2;
@@ -537,6 +553,7 @@ function initPond(hero) {
       k.bites = (k.bites || 0) + 1;
       if (k.bites >= (k.appetite ||= Math.ceil(rand(1.5, 4)))) {
         k.fullT = rand(8, 15);
+        k.dashT = rand(1.2, 2); // a quick burst away from the crowd
         k.bites = 0;
         k.appetite = Math.ceil(rand(1.5, 4));
         k.waypoint = null; // head somewhere new
@@ -587,7 +604,6 @@ function initPond(hero) {
     // a trapped koi fades out and reappears somewhere open
     for (let i = 0; i < koi.length; i++) {
       const k = koi[i], h = k.spine[0];
-      if (clearance(h.x, h.y, obstacles) < 2) k.leaving = true;
       if (k.leaving && k.fade === 0) {
         const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, k, true);
         if (at) koi[i] = newKoi(at);
@@ -856,14 +872,18 @@ function initPond(hero) {
     for (const k of koi) rasterKoi(k, cells, dark);
     KS = 1;
 
+    const deepTint = dark ? [40, 52, 70] : [150, 172, 196]; // murky blue-grey
+
     // soft tile shadow, offset like light from the upper left
     ctx.fillStyle = dark ? "#000000" : "#94a3b8";
     for (const [key, c] of cells) {
       if (c.kind !== "body") continue;
       const col = key & 0xffff, row = key >>> 16;
       const sc = col + 1, sr = row + 2;
-      if (cells.has(sr * 65536 + sc) || isBlocked(sc, sr)) continue;
-      ctx.globalAlpha = (dark ? 0.28 : 0.14) * c.fade;
+      if (cells.has(sr * 65536 + sc) || sc >= cols || sr >= rows) continue;
+      const sd = deep[sr * cols + sc] || 0;
+      if (sd > 0.95) continue;
+      ctx.globalAlpha = (dark ? 0.28 : 0.14) * c.fade * (1 - sd);
       ctx.fillRect(sc * CELL + 0.5, sr * CELL + 0.5, CELL - 1, CELL - 1);
     }
 
@@ -891,22 +911,25 @@ function initPond(hero) {
     // koi tiles
     for (const [key, c] of cells) {
       const col = key & 0xffff, row = key >>> 16;
-      if (isBlocked(col, row)) continue;
+      if (col >= cols || row >= rows) continue;
       const x = col * CELL, y = row * CELL;
+      // deeper water near the text: fade out and take on the water's colour
+      const dp = deep[row * cols + col] || 0;
+      const vis = 1 - 0.86 * dp;
       if (c.kind === "body") {
-        ctx.globalAlpha = 0.97 * c.edge * c.fade;
-        ctx.fillStyle = css(c.fill);
+        ctx.globalAlpha = 0.97 * c.edge * c.fade * vis;
+        ctx.fillStyle = css(dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill);
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
         if (c.glyph !== " ") {
-          ctx.globalAlpha = c.ga * c.fade;
+          ctx.globalAlpha = c.ga * c.fade * vis;
           stamp(c.glyph, c.gcol, col, row);
         }
       } else {
         // fins: translucent tiles with ray glyphs
-        ctx.globalAlpha = c.fa * c.fade;
-        ctx.fillStyle = css(c.fill);
+        ctx.globalAlpha = c.fa * c.fade * vis;
+        ctx.fillStyle = css(dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill);
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-        ctx.globalAlpha = 0.3 * c.fade;
+        ctx.globalAlpha = 0.3 * c.fade * vis;
         stamp(c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", col, row);
       }
     }
@@ -1007,7 +1030,7 @@ function initPond(hero) {
         k.spine.forEach((p, j) => { p.x = x; p.y = y + j * seg(); });
         k.heading = -Math.PI / 2;
       },
-      state: () => koi.map((k) => ({ feeding: !!k.food, away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
+      state: () => koi.map((k) => ({ depth: +(deep[Math.floor(k.spine[0].y / CELL) * cols + Math.floor(k.spine[0].x / CELL)] || 0).toFixed(2), feeding: !!k.food, away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
     };
   }
 }
