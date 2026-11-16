@@ -377,7 +377,10 @@ function initPond(hero) {
   function resize() {
     W = hero.clientWidth;
     H = hero.clientHeight;
-    S = clamp(W / 1500, 0.6, 1.35); // wide screens get proportionally bigger koi
+    // Tiles are a fixed 6px, so a koi's detail is its size: keep koi near full size
+    // on half-screen windows (and only a little smaller on phones) rather than
+    // shrinking them into a handful of blocks. Wide screens still grow them.
+    S = W < 600 ? 0.8 : clamp(W / 1500, 0.92, 1.35);
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     waterLayer.width = Math.round(W * dpr);
     waterLayer.height = Math.round(H * dpr);

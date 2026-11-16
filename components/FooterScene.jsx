@@ -320,6 +320,11 @@ export default function FooterScene() {
       style={{ width: "100%", height: "100%", pointerEvents: "none" }}
     >
       <Canvas
+        // R3F hard-codes pointer-events: auto on its container, which overrode
+        // the wrapper's "none" and swallowed clicks on the footer links wherever
+        // the strip overlaps them (wide screens). Inherit the wrapper's value
+        // instead, so only the character itself is clickable.
+        style={{ pointerEvents: "inherit" }}
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 2]}
         orthographic
