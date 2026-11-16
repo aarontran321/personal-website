@@ -95,6 +95,7 @@ function initPond(hero) {
   let blocked = new Uint8Array(0); // per-tile: 1 = touches text
   let deep = new Float32Array(0); // per-tile: 0 open water .. 1 under the text
   let layoutSig = "";
+  let edgeRow = new Float32Array(0); // per-row fade near the top and bottom edges
   let koi = [], pellets = [], ripples = [], bubbles = [], waterDots = [];
   let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
@@ -277,11 +278,13 @@ function initPond(hero) {
     obstacles = out;
     const big = 1e5;
     // koi can swim anywhere, under the text included; only the pond's edges stop them
+    // ...and the pond carries on past every edge of the screen
+    const M = 380 * S;
     walls = [
-      { x0: -big, y0: -big, x1: big, y1: TOP_BOUND }, // top (header)
-      { x0: -big, y0: H, x1: big, y1: big }, // bottom
-      { x0: -big, y0: -big, x1: 0, y1: big }, // left
-      { x0: W + 380 * S, y0: -big, x1: big, y1: big }, // right: the pond carries on off-screen
+      { x0: -big, y0: -big, x1: big, y1: -M }, // top
+      { x0: -big, y0: H + M, x1: big, y1: big }, // bottom
+      { x0: -big, y0: -big, x1: -M, y1: big }, // left
+      { x0: W + M, y0: -big, x1: big, y1: big }, // right
     ];
     // the masks below only need rebuilding when the text or the size moved
     const sig = W + "x" + H + ":" + out.map((r) => `${r.x0 | 0},${r.y0 | 0},${r.x1 | 0},${r.y1 | 0}`).join(";");
@@ -296,6 +299,14 @@ function initPond(hero) {
       const c0 = Math.max(0, Math.floor((r.x0 - 4) / CELL)), c1 = Math.min(cols - 1, Math.floor((r.x1 + 4) / CELL));
       const r0 = Math.max(0, Math.floor((r.y0 - 4) / CELL)), r1 = Math.min(rows - 1, Math.floor((r.y1 + 4) / CELL));
       for (let y = r0; y <= r1; y++) blocked.fill(1, y * cols + c0, y * cols + c1 + 1);
+    }
+    // top and bottom of the pond aren't hard borders: koi fade out there
+    edgeRow = new Float32Array(rows);
+    const BAND = 110, top0 = 64; // just below the fixed header
+    for (let y = 0; y < rows; y++) {
+      const py = (y + 0.5) * CELL;
+      const a = clamp((py - top0) / BAND, 0, 1), b = clamp((H - py) / BAND, 0, 1);
+      edgeRow[y] = a * a * (3 - 2 * a) * (b * b * (3 - 2 * b));
     }
     // "deep water" under and around the text: koi there sink out of view
     deep = new Float32Array(cols * rows);
@@ -343,9 +354,8 @@ function initPond(hero) {
     const need = roomNeed();
     for (let pass = 0; pass < 3; pass++) {
       for (let i = 0; i < 70; i++) {
-        const x = rand(0, W);
-        const y = rand(TOP_BOUND, H);
-        if (x > W - need * 0.8) continue; // on-screen spots stay fully visible
+        const x = rand(50, W - need * 0.8); // on-screen spots stay fully visible
+        const y = rand(TOP_BOUND + 60 * S, H - 80 * S);
         if (heading !== null && pass < 2) {
           // keep going roughly the way it's facing: no U-turns to reach the next spot
           let b = Math.atan2(y - from.y, x - from.x) - heading;
@@ -356,7 +366,7 @@ function initPond(hero) {
         // mostly open water, but now and then a dive under the text
         if (pass < 2 && Math.random() < 0.7 && clearance(x, y, obstacles) < need * 0.8) continue;
         if (!anyDist && Math.hypot(x - from.x, y - from.y) < 220 * S) continue; // longer swims
-        if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 200 * S)) continue;
+        if (self && koi.some((o) => o !== self && !o.away && Math.hypot(o.target.x - x, o.target.y - y) < 150 * S)) continue;
         if (pass < 2 && pellets.some((p) => Math.hypot(p.x - x, p.y - y) < 230 * S)) continue; // leave the feeding spot to the feeders
         if (pass === 0 && !anyDist && !lineOfSight(from, { x, y }, need * 0.7)) continue;
         return { x, y };
@@ -365,13 +375,27 @@ function initPond(hero) {
     return null;
   }
 
+  // A spot just past one of the screen's edges.
+  function offscreenPoint(edge) {
+    const r = Math.random();
+    edge = edge || (r < 0.35 ? "right" : r < 0.65 ? "bottom" : r < 0.85 ? "top" : "left");
+    const out = rand(130, 250) * S;
+    if (edge === "right") return { x: W + out, y: rand(TOP_BOUND, H), edge };
+    if (edge === "left") return { x: -out, y: rand(TOP_BOUND, H), edge };
+    if (edge === "top") return { x: rand(W * 0.3, W), y: -out, edge };
+    return { x: rand(W * 0.3, W), y: H + out, edge };
+  }
+  const onScreen = (p, pad = 0) => p.x > -pad && p.x < W + pad && p.y > -pad && p.y < H + pad;
+
   function desiredCount() {
-    if (W >= 2400) return 7;
-    if (W >= 2000) return 6;
-    if (W >= 1700) return 5;
-    if (W >= 1400) return 4;
-    if (W >= 1000) return 3;
-    return 2;
+    // the whole pond, on screen and off; up to ~45% are away at any moment
+    if (W >= 2400) return 12;
+    if (W >= 2000) return 11;
+    if (W >= 1700) return 9;
+    if (W >= 1400) return 8;
+    if (W >= 1000) return 6;
+    if (W >= 700) return 5;
+    return 4;
   }
 
   function resize() {
@@ -410,10 +434,22 @@ function initPond(hero) {
     }
     const want = desiredCount();
     while (koi.length > want) koi.pop();
+    const firstFill = koi.length === 0;
+    const startOnScreen = Math.max(2, want - Math.floor(want * 0.45));
     while (koi.length < want) {
-      const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, null, true);
-      if (!at) break;
-      koi.push(newKoi(at));
+      if (firstFill && koi.length < startOnScreen) {
+        const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, null, true);
+        if (!at) break;
+        koi.push(newKoi(at));
+      } else {
+        // everyone else starts out of sight and swims in over the next while
+        const p = offscreenPoint();
+        const k = newKoi(p);
+        k.away = true; k.edge = p.edge; k.awayT = rand(0.5, firstFill ? 14 : 6);
+        k.waypoint = { x: p.x, y: p.y };
+        k.fade = 1;
+        koi.push(k);
+      }
     }
   }
 
@@ -426,7 +462,7 @@ function initPond(hero) {
     if (!active || e.target.closest("a, button, input, textarea, select, label")) return null;
     const hr = hero.getBoundingClientRect();
     const x = e.clientX - hr.left, y = e.clientY - hr.top;
-    if (clearance(x, y, obstacles) < 24 || clearance(x, y) < 24) return null;
+    if (clearance(x, y, obstacles) < 24 || y < TOP_BOUND || y > H - 24 || x < 24 || x > W - 24) return null;
     return { x, y };
   }
 
@@ -494,19 +530,30 @@ function initPond(hero) {
     // circle it, which is what made them spin.)
     const arrive = 90 * S;
     if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
-      // now and then a koi wanders off past the right edge and comes back later,
-      // so the visible pond never gets crowded; at most a third are away at once
-      // (never with only two koi, so small screens always show both)
+      // Koi drift off past any edge and come back on their own schedule: one
+      // leaving doesn't pull another in. Up to ~45% are away at once, but at
+      // least two always stay in view.
       const awayNow = koi.filter((o) => o.away).length;
-      if (!k.away && koi.length >= 3 && Math.random() < 0.18 && awayNow < Math.floor(koi.length / 3)) {
-        k.waypoint = { x: W + rand(140, 280) * S, y: rand(TOP_BOUND + 60 * S, H - 60 * S) };
+      const awayCap = Math.max(0, Math.min(Math.floor(koi.length * 0.45), koi.length - 2));
+      if (k.away && k.awayT > 0) {
+        k.waypoint = offscreenPoint(k.edge); // linger out of sight a while
+      } else if (!k.away && Math.random() < 0.3 && awayNow < awayCap) {
+        const p = offscreenPoint();
+        k.waypoint = p; k.edge = p.edge;
         k.away = true;
+        k.awayT = rand(4, 18);
       } else {
-        k.waypoint = pickWaypoint(head, k, false, k.heading) || pickWaypoint(head, k, true) || k.waypoint;
+        const ahead = {
+          x: clamp(head.x + Math.cos(k.heading) * 250 * S, 60, W - 60),
+          y: clamp(head.y + Math.sin(k.heading) * 250 * S, TOP_BOUND + 60 * S, H - 80 * S),
+        };
+        k.waypoint = (k.away ? pickWaypoint(head, k, true) : pickWaypoint(head, k, false, k.heading))
+          || pickWaypoint(head, k, true) || ahead;
         k.away = false;
       }
     }
     if (k.waypoint) { t.x = k.waypoint.x; t.y = k.waypoint.y; } // other koi read this to spread out
+    if (k.away && k.awayT > 0 && !onScreen(head, 40 * S)) k.awayT -= dt; // the clock runs once it's out of sight
 
     // food beats wandering
     k.eatCd = Math.max(0, (k.eatCd || 0) - dt);
@@ -1055,7 +1102,7 @@ function initPond(hero) {
       if (cells.has(sr * 65536 + sc) || sc >= cols || sr >= rows) continue;
       const sd = deep[sr * cols + sc] || 0;
       if (sd > 0.95) continue;
-      put(sc, sr, shadowRGB, shadowA * c.fade * (1 - sd));
+      put(sc, sr, shadowRGB, shadowA * c.fade * (1 - sd) * edgeRow[sr]);
     }
     // koi tiles; deeper water near the text fades them and tints them murky
     const glyphs = [];
@@ -1063,7 +1110,7 @@ function initPond(hero) {
       const col = key & 0xffff, row = key >>> 16;
       if (col >= cols || row >= rows) continue;
       const dp = deep[row * cols + col] || 0;
-      const vis = 1 - deepDim * dp;
+      const vis = (1 - deepDim * dp) * edgeRow[row];
       const fill = dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill;
       if (c.kind === "body") {
         put(col, row, fill, 0.97 * c.edge * c.fade * vis);
