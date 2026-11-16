@@ -1065,27 +1065,6 @@ function initPond(hero) {
     // more visible there (they're behind the text, so it stays readable)
     const deepDim = 0.6 + 0.26 * clamp((W - 700) / 500, 0, 1);
 
-    // feed: little bobbing pellets, each with its own shadow (under the koi)
-    const ps = Math.max(4, Math.round(5 * S + 1));
-    for (const p of pellets) {
-      const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
-      if (isBlocked(col, row) || cells.get(row * 65536 + col)?.kind === "body") continue;
-      const fade = Math.min(1, (p.life - p.age) / (p.dying ? 0.8 : 3));
-      const fly = p.landed ? 1 : p.fly / p.flyDur;
-      const lift = p.landed ? 0 : Math.sin(fly * Math.PI) * 10 * S; // arc while airborne
-      const jx = Math.sin(time * 7 + p.seed) * 0.9 + Math.sin(time * 13 + p.seed * 2) * 0.4;
-      const jy = Math.cos(time * 6.3 + p.seed * 1.7) * 0.9;
-      const x = p.x + jx - ps / 2, y = p.y + jy - ps / 2;
-      ctx.globalAlpha = (dark ? 0.45 : 0.3) * fade;
-      ctx.fillStyle = dark ? "#000000" : "#94a3b8";
-      ctx.fillRect(Math.round(x + 2 + lift * 0.3), Math.round(y + 3 + lift * 0.6), ps, ps);
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = "#8a5520";
-      ctx.fillRect(Math.round(x), Math.round(y - lift), ps, ps);
-      ctx.fillStyle = "#c58a45";
-      ctx.fillRect(Math.round(x), Math.round(y - lift), Math.ceil(ps / 2), Math.ceil(ps / 2));
-    }
-
     // tile colours -> one pixel each
     tileBuf.fill(0);
     const put = (col, row, c, a) => {
@@ -1138,6 +1117,28 @@ function initPond(hero) {
       if (a !== lastA) { ctx.globalAlpha = a; lastA = a; }
       stamp(glyphs[i + 2], glyphs[i + 3], glyphs[i], glyphs[i + 1]);
     }
+    // feed floats on the surface, so it's drawn over the koi: a fish passing
+    // underneath doesn't hide it. Each pellet bobs and casts its own shadow.
+    const ps = Math.max(4, Math.round(5 * S + 1));
+    for (const p of pellets) {
+      const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
+      if (isBlocked(col, row)) continue;
+      const fade = Math.min(1, (p.life - p.age) / (p.dying ? 0.8 : 3));
+      const fly = p.landed ? 1 : p.fly / p.flyDur;
+      const lift = p.landed ? 0 : Math.sin(fly * Math.PI) * 10 * S; // arc while airborne
+      const jx = Math.sin(time * 7 + p.seed) * 0.9 + Math.sin(time * 13 + p.seed * 2) * 0.4;
+      const jy = Math.cos(time * 6.3 + p.seed * 1.7) * 0.9;
+      const x = p.x + jx - ps / 2, y = p.y + jy - ps / 2;
+      ctx.globalAlpha = (dark ? 0.45 : 0.3) * fade;
+      ctx.fillStyle = dark ? "#000000" : "#94a3b8";
+      ctx.fillRect(Math.round(x + 2 + lift * 0.3), Math.round(y + 3 + lift * 0.6), ps, ps);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = "#8a5520";
+      ctx.fillRect(Math.round(x), Math.round(y - lift), ps, ps);
+      ctx.fillStyle = "#c58a45";
+      ctx.fillRect(Math.round(x), Math.round(y - lift), Math.ceil(ps / 2), Math.ceil(ps / 2));
+    }
+
     drawBubbles(dark);
     ctx.globalAlpha = 1;
   }
