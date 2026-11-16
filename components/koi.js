@@ -1,29 +1,42 @@
-// ASCII koi that swims through the hero's empty space.
+// ASCII koi pond in the hero.
 //
-// A small "lead pixel" wanders between open spots (mostly on the right side);
-// the koi chases it. The koi's body is a follow-the-leader spine with a
-// travelling swim wave, rasterised every frame onto a monospace character grid.
-// Every text block in the hero is an obstacle: the head steers away from them,
-// each spine point is pushed out of them, and as a last guarantee no character
-// is ever drawn inside one.
+// - Water: evenly scattered `-` / `~` glyphs drifting and shimmering across
+//   the whole hero, plus ripple rings when feed lands or a koi eats.
+// - Koi: each one chases an invisible target that wanders between open spots
+//   (mostly on the right). The body is a follow-the-leader spine with a
+//   carangiform swim wave (head barely sways, tail does the work), burst-and-
+//   glide speed, paddling pectoral fins and a trailing forked tail. It is
+//   rasterised every frame onto a grid of square tiles with ASCII glyphs.
+// - Feed: click open water and a handful of pellets scatters out from the
+//   click, bobbing with shadows; koi nose over and gulp them one at a time.
+// - Text is sacred: heads steer around every text block, spine points are
+//   pushed out of them, and no tile, glyph or ripple is ever drawn over one.
+//
+// Size and count scale with the window; with no open water (phones) it hides.
 
-const hero = document.querySelector(".hero");
-if (hero) initKoi(hero);
+// Real koi colours.
+const WHITE = "#efebe3", RED = "#e5432b", ORANGE = "#f2711c", BLACK = "#1f1d1d";
 
-function initKoi(hero) {
+const VARIETIES = [
+  { name: "kohaku", base: WHITE, patch: RED, fin: WHITE },
+  { name: "ogon", base: ORANGE, patch: "#f58d45", fin: "#f7a868", solid: true },
+  { name: "sanke", base: WHITE, patch: RED, spot: BLACK, fin: WHITE },
+  { name: "showa", base: BLACK, patch: RED, spot: WHITE, fin: "#5b5551", dark: { base: "#57534e" } },
+  { name: "tancho", base: WHITE, patch: RED, fin: WHITE, tancho: true },
+  { name: "benigoi", base: "#e8562a", patch: "#d9401f", fin: "#f4b49a" },
+];
+
+function initPond(hero) {
   // ---- tunables -----------------------------------------------------------
-  const FONT_PX = 10;
-  const CELL_H = 9;
-  const BODY_LEN = 170; // head to base of tail fin, px
-  const TOTAL = 1.22; // spine length incl. tail fin, in body lengths
-  const N = 30; // spine segments
-  const SEG = (BODY_LEN * TOTAL) / N;
-  const MAX_R = 27; // half-width at the widest point
-  const CLEAR = 14; // minimum gap kept between the koi and any text
+  const CELL = 9; // square tile size, px
+  const GLYPH_PX = 8;
+  const TOTAL = 1.3; // spine length incl. tail fin, in body lengths
+  const N = 28; // spine segments
+  const CLEAR = 14; // minimum gap kept between a koi and any text
   const TOP_BOUND = 90; // stay below the fixed site header
-  const MIN_WIDTH = 900; // below this there's no real whitespace to swim in
-  const RAMP = ".:-=+*#%@";
-  const FIN_RAMP = ".-~=";
+  const MIN_WIDTH = 820;
+  const BODY_GLYPHS = " .:-=+";
+  const MAX_PELLETS = 160;
 
   const canvas = document.createElement("canvas");
   canvas.className = "koi-canvas";
@@ -33,18 +46,31 @@ function initKoi(hero) {
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let W = 0, H = 0, cellW = 6;
+  let W = 0, H = 0, dpr = 1, cols = 0, rows = 0;
+  let S = 1; // size scale for the current window
   let obstacles = []; // text rects, hero-local coords
   let walls = []; // obstacles + out-of-bounds slabs (physics only)
-  let spine = [];
-  let lead = null, waypoint = null;
-  let heading = Math.PI; // facing left
-  let speed = 40, phase = 0, time = 0, fade = 0;
-  let trail = [], trailTimer = 0;
+  let blocked = new Uint8Array(0); // per-tile: 1 = touches text
+  let koi = [], pellets = [], ripples = [], waterDots = [];
+  let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
+  let varietyCursor = Math.floor(Math.random() * VARIETIES.length);
 
-  // ---- geometry helpers ---------------------------------------------------
+  // size-dependent geometry
+  const bodyLen = () => 160 * S;
+  const maxR = () => 23 * S;
+  const seg = () => (bodyLen() * TOTAL) / N;
+
+  // ---- helpers ------------------------------------------------------------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const mixA = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const css = (a) => `rgb(${a[0] | 0},${a[1] | 0},${a[2] | 0})`;
+  const lum = (a) => (0.299 * a[0] + 0.587 * a[1] + 0.114 * a[2]) / 255;
+  const INK = rgb("#0f172a"), PAPER = rgb("#ffffff");
 
   function rectDist(px, py, r) {
     const dx = Math.max(r.x0 - px, 0, px - r.x1);
@@ -70,7 +96,6 @@ function initKoi(hero) {
         p.x = cx + (dx / d) * need;
         p.y = cy + (dy / d) * need;
       } else {
-        // inside: leave by the nearest edge
         const opts = [
           [p.x - r.x0, -1, 0], [r.x1 - p.x, 1, 0],
           [p.y - r.y0, 0, -1], [r.y1 - p.y, 0, 1],
@@ -83,7 +108,7 @@ function initKoi(hero) {
   }
 
   function lineOfSight(a, b, need) {
-    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const d = dist(a, b);
     const steps = Math.max(1, Math.ceil(d / 10));
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -92,33 +117,74 @@ function initKoi(hero) {
     return true;
   }
 
+  const isBlocked = (col, row) =>
+    col < 0 || row < 0 || col >= cols || row >= rows || blocked[row * cols + col] === 1;
+
   // ---- body shape ---------------------------------------------------------
   // s: 0 at the snout, 1 at the base of the tail fin.
   function bodyR(s) {
-    if (s < 0.25) return MAX_R * (0.55 + 0.45 * Math.sin((s / 0.25) * Math.PI / 2));
-    return MAX_R * (1 - 0.85 * Math.pow((s - 0.25) / 0.75, 1.3));
+    const R = maxR();
+    if (s < 0.22) return R * (0.5 + 0.5 * Math.sin((s / 0.22) * Math.PI / 2)); // blunt head
+    return R * (1 - 0.88 * Math.pow((s - 0.22) / 0.78, 1.5)); // long taper to the tail
   }
+
+  const waveEnv = (s) => 0.12 + 0.88 * Math.min(s, TOTAL) ** 2; // head steady, tail swings
 
   // Half-width the physics keeps clear around each spine point (fins included).
   function envelope(s) {
-    const wave = 7 * Math.pow(Math.min(s, 1), 1.4);
-    const fins = s < 0.75 ? MAX_R * 0.9 : s <= 1 ? 0 : MAX_R * 1.2;
-    return Math.max(s <= 1 ? bodyR(s) : 0, fins) + wave + CLEAR;
+    const R = maxR();
+    const fins = s < 0.5 ? R * 1.3 : s <= 1 ? R * 0.6 : R * 1.25;
+    return Math.max(s <= 1 ? bodyR(s) : 0, fins) + 9 * S * waveEnv(s) + CLEAR;
   }
 
-  const ORANGE = [
-    [0.06, 0, 0.07, 0.9], [0.3, 0.4, 0.08, 0.5], [0.44, -0.35, 0.07, 0.55],
-    [0.66, 0.15, 0.08, 0.6],
-  ];
-  const BLACK = [[0.5, 0.55, 0.035, 0.35], [0.72, -0.6, 0.03, 0.3], [0.24, -0.65, 0.03, 0.3]];
+  const roomNeed = () => 100 * S;
 
-  function inBlobs(blobs, s, t) {
-    const wobble = 0.22 * Math.sin(s * 41 + t * 5) + 0.12 * Math.sin(s * 17 - t * 9);
+  // ---- koi ----------------------------------------------------------------
+  // Patterns are a few large, fairly clean-edged patches, like real koi.
+  function makePattern(v) {
+    const patches = [], spots = [];
+    if (v.tancho) {
+      patches.push([0.09, 0, 0.055, 0.55]); // single round mark on the head
+    } else if (!v.solid) {
+      patches.push([rand(0.05, 0.11), rand(-0.15, 0.15), rand(0.06, 0.09), rand(0.8, 1.2)]);
+      let s = rand(0.24, 0.3);
+      const n = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n && s < 0.85; i++) {
+        const rs = rand(0.08, 0.13);
+        patches.push([s + rs * 0.6, rand(-0.3, 0.3), rs, rand(0.85, 1.4)]);
+        s += rs * 2 + rand(0.03, 0.09);
+      }
+    }
+    if (v.spot === BLACK) {
+      const m = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < m; i++) spots.push([rand(0.3, 0.85), rand(-0.75, 0.75), rand(0.025, 0.04), rand(0.2, 0.35)]);
+    } else if (v.spot) {
+      // showa: broad white areas
+      for (let i = 0; i < 2; i++) spots.push([rand(0.3, 0.8), rand(-0.5, 0.5), rand(0.06, 0.09), rand(0.5, 0.8)]);
+    }
+    return { patches, spots, wa: rand(0, 6), wb: rand(0, 6) };
+  }
+
+  function inBlobs(blobs, s, t, pat) {
+    const wobble = 0.1 * Math.sin(s * 37 + t * 4 + pat.wa) + 0.06 * Math.sin(s * 15 - t * 7 + pat.wb);
     for (const [s0, t0, rs, rt] of blobs) {
-      const v = ((s - s0) / rs) ** 2 + ((t - t0) / rt) ** 2;
-      if (v < 1 + wobble) return true;
+      if (((s - s0) / rs) ** 2 + ((t - t0) / rt) ** 2 < 1 + wobble) return true;
     }
     return false;
+  }
+
+  function newKoi(at) {
+    const v = VARIETIES[varietyCursor++ % VARIETIES.length];
+    const k = {
+      v, pat: makePattern(v),
+      spine: [], target: { x: at.x - 40, y: at.y }, waypoint: null,
+      heading: Math.PI, speed: 30 * S, beat: 0.4, glide: 0,
+      phase: rand(0, 6), fade: reduceMotion ? 1 : 0, tempo: rand(0.85, 1.15),
+    };
+    for (let i = 0; i <= N; i++) k.spine.push({ x: at.x + i * seg(), y: at.y });
+    for (let i = 0; i <= N; i++) pushOut(k.spine[i], envelope((i / N) * TOTAL));
+    k.waypoint = pickWaypoint(k.target, k);
+    return k;
   }
 
   // ---- layout -------------------------------------------------------------
@@ -145,285 +211,522 @@ function initKoi(hero) {
       { x0: -big, y0: -big, x1: 0, y1: big }, // left
       { x0: W - 12, y0: -big, x1: big, y1: big }, // right
     ]);
+    // tile mask: any tile within 4px of text is off-limits for drawing
+    cols = Math.ceil(W / CELL);
+    rows = Math.ceil(H / CELL);
+    blocked = new Uint8Array(cols * rows);
+    for (const r of out) {
+      const c0 = Math.max(0, Math.floor((r.x0 - 4) / CELL)), c1 = Math.min(cols - 1, Math.floor((r.x1 + 4) / CELL));
+      const r0 = Math.max(0, Math.floor((r.y0 - 4) / CELL)), r1 = Math.min(rows - 1, Math.floor((r.y1 + 4) / CELL));
+      for (let y = r0; y <= r1; y++) blocked.fill(1, y * cols + c0, y * cols + c1 + 1);
+    }
   }
 
-  function resize() {
-    W = hero.clientWidth;
-    H = hero.clientHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.font = `${FONT_PX}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-    ctx.textBaseline = "top";
-    cellW = Math.ceil(ctx.measureText("M").width);
-    collectObstacles();
-    const wasActive = active;
-    active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, true);
-    canvas.style.display = active ? "" : "none";
-    if (active && (!wasActive || !spine.length)) spawn();
-    syncLoop();
-  }
-
-  function pickWaypoint(from, anyDist = false) {
-    for (let pass = 0; pass < 2; pass++) {
-      const need = pass === 0 ? 100 : 80;
-      for (let i = 0; i < 80; i++) {
-        const x = W * (0.45 + Math.random() * 0.55); // home turf: right side
-        const y = TOP_BOUND + Math.random() * (H - TOP_BOUND);
-        const p = { x, y };
+  // Random open spot with room for a koi, preferring the right side and
+  // keeping away from other koi's targets.
+  function pickWaypoint(from, self, anyDist = false) {
+    const need = roomNeed();
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < 70; i++) {
+        const x = pass < 2 ? W * rand(0.45, 1) : rand(0, W);
+        const y = rand(TOP_BOUND, H);
         if (clearance(x, y) < need) continue;
-        if (!anyDist && Math.hypot(x - from.x, y - from.y) < 160) continue;
-        if (pass === 0 && !anyDist && !lineOfSight(from, p, 70)) continue;
-        return p;
+        if (!anyDist && Math.hypot(x - from.x, y - from.y) < 140 * S) continue;
+        if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 160 * S)) continue;
+        if (pass === 0 && !anyDist && !lineOfSight(from, { x, y }, need * 0.7)) continue;
+        return { x, y };
       }
     }
     return null;
   }
 
-  function spawn() {
-    const p = pickWaypoint({ x: W * 0.8, y: H / 2 }, true);
-    if (!p) return;
-    lead = { x: p.x - 40, y: p.y };
-    heading = Math.PI;
-    spine = [];
-    for (let i = 0; i <= N; i++) spine.push({ x: p.x + i * SEG, y: p.y });
-    for (let i = 0; i <= N; i++) pushOut(spine[i], envelope((i / N) * TOTAL));
-    waypoint = pickWaypoint(lead);
-    trail = [];
-    fade = reduceMotion ? 1 : 0;
+  function desiredCount() {
+    if (W >= 1700) return 4;
+    if (W >= 1300) return 3;
+    if (W >= 1000) return 2;
+    return 1;
+  }
+
+  function resize() {
+    W = hero.clientWidth;
+    H = hero.clientHeight;
+    S = clamp(W / 1500, 0.6, 1);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    collectObstacles();
+    seedWater();
+    reconcile();
+    syncLoop();
+  }
+
+  // Make the number of koi match the space; hide the pond if there's no room.
+  function reconcile() {
+    active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
+    canvas.style.display = active ? "" : "none";
+    if (!active) { koi = []; pellets = []; ripples = []; return; }
+    const want = desiredCount();
+    while (koi.length > want) koi.pop();
+    while (koi.length < want) {
+      const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, null, true);
+      if (!at) break;
+      koi.push(newKoi(at));
+    }
+  }
+
+  // ---- feeding ------------------------------------------------------------
+  const reachable = (x, y) => clearance(x, y) >= envelope(0) * 0.9;
+
+  // A handful of feed bursts out from the click point and scatters around it.
+  function onClick(e) {
+    if (!active) return;
+    if (e.target.closest("a, button, input, textarea, select, label")) return;
+    if (String(window.getSelection?.() || "").length) return;
+    const hr = hero.getBoundingClientRect();
+    const x = e.clientX - hr.left, y = e.clientY - hr.top;
+    if (clearance(x, y) < 24) return; // clicked on text
+    const n = 24 + Math.floor(Math.random() * 14);
+    for (let i = 0; i < n && pellets.length < MAX_PELLETS; i++) {
+      const a = rand(0, Math.PI * 2);
+      const reach = (10 + 150 * Math.random() ** 1.5) * S; // denser near the middle
+      pellets.push({
+        x, y, sx: x, sy: y,
+        tx: x + Math.cos(a) * reach, ty: y + Math.sin(a) * reach,
+        fly: 0, flyDur: rand(0.4, 0.95), landed: false, reach: false,
+        age: 0, life: rand(24, 32), seed: rand(0, 100),
+      });
+    }
+    ripples.push({ x, y, age: 0, life: 1.6, maxR: 70 * S });
+  }
+
+  function updatePellets(dt) {
+    for (const p of pellets) {
+      p.age += dt;
+      if (!p.landed) {
+        // fly outward, easing to a stop; stop early rather than land on text
+        p.fly += dt;
+        const t = Math.min(1, p.fly / p.flyDur);
+        const e = 1 - (1 - t) ** 3;
+        const nx = p.sx + (p.tx - p.sx) * e, ny = p.sy + (p.ty - p.sy) * e;
+        if (clearance(nx, ny) < 10) p.fly = p.flyDur; // land where it is
+        else { p.x = nx; p.y = ny; }
+        if (p.fly >= p.flyDur) {
+          p.landed = true;
+          p.reach = reachable(p.x, p.y);
+          if (Math.random() < 0.25) ripples.push({ x: p.x, y: p.y, age: 0, life: 0.6, maxR: 10 * S });
+        }
+      } else {
+        // float: a slow drift on the current
+        p.x += Math.sin(time * 0.5 + p.seed) * 4 * dt;
+        p.y += Math.cos(time * 0.4 + p.seed * 1.3) * 3 * dt;
+        if (clearance(p.x, p.y) < 10) pushOut(p, 10);
+        if (Math.random() < dt) p.reach = reachable(p.x, p.y);
+      }
+    }
+    pellets = pellets.filter((p) => p.age < p.life);
   }
 
   // ---- simulation ---------------------------------------------------------
-  function update(dt) {
-    time += dt;
-    fade = Math.min(1, fade + dt / 1.5);
-    const head = spine[0];
-    const distLead = Math.hypot(lead.x - head.x, lead.y - head.y);
+  function updateKoi(k, dt) {
+    k.fade = Math.min(1, k.fade + dt / 1.5);
+    const head = k.spine[0];
+    const t = k.target;
 
-    // lead pixel: glides toward its waypoint, waits if the koi falls behind
-    if (!waypoint || Math.hypot(waypoint.x - lead.x, waypoint.y - lead.y) < 10) {
-      waypoint = pickWaypoint(lead) || waypoint;
+    // the wander target must always sit in open water; if the layout moved it
+    // into a corner or onto text, relocate it instead of chasing it there
+    if (clearance(t.x, t.y) < roomNeed() * 0.6) {
+      const p = pickWaypoint(head, k, true);
+      if (p) { t.x = p.x; t.y = p.y; k.waypoint = null; }
     }
-    if (waypoint) {
-      const dx = waypoint.x - lead.x, dy = waypoint.y - lead.y;
+    if (!k.waypoint || dist(k.waypoint, t) < 10) k.waypoint = pickWaypoint(t, k) || k.waypoint;
+    if (k.waypoint) {
+      const dx = k.waypoint.x - t.x, dy = k.waypoint.y - t.y;
       const d = Math.hypot(dx, dy) || 1;
-      const v = distLead > 120 ? 8 : 52;
-      const wob = Math.sin(time * 1.3) * 0.35;
-      const ux = dx / d, uy = dy / d;
-      lead.x += (ux - uy * wob) * v * dt;
-      lead.y += (uy + ux * wob) * v * dt;
-      pushOut(lead, 70);
-    }
-    trailTimer += dt;
-    if (trailTimer > 0.09) {
-      trailTimer = 0;
-      trail.unshift({ x: lead.x, y: lead.y });
-      trail.length = Math.min(trail.length, 5);
+      const v = (dist(t, head) > 120 * S ? 8 : 45) * k.tempo;
+      const wob = Math.sin(time * 1.3 + k.phase) * 0.35;
+      t.x += (dx / d - (dy / d) * wob) * v * dt;
+      t.y += (dy / d + (dx / d) * wob) * v * dt;
+      pushOut(t, roomNeed() * 0.7);
     }
 
-    // head: chase the lead, steer around text
-    let ax = (lead.x - head.x) / (distLead || 1);
-    let ay = (lead.y - head.y) / (distLead || 1);
-    const fx = Math.cos(heading), fy = Math.sin(heading);
-    for (const probe of [0, 35, 70]) {
+    // food beats wandering
+    k.eatCd = Math.max(0, (k.eatCd || 0) - dt);
+    let food = null, foodD = 450 * S;
+    for (const p of pellets) {
+      if (!p.landed || !p.reach) continue;
+      const d = dist(p, head);
+      if (d < foodD) { food = p; foodD = d; }
+    }
+    const goal = food || t;
+    const goalD = dist(goal, head);
+
+    // steering: toward the goal, away from text and other koi
+    let ax = (goal.x - head.x) / (goalD || 1);
+    let ay = (goal.y - head.y) / (goalD || 1);
+    const fx = Math.cos(k.heading), fy = Math.sin(k.heading);
+    const range = 95 * S + 20;
+    for (const probe of [0, 35 * S, 70 * S]) {
       const px = head.x + fx * probe, py = head.y + fy * probe;
       for (const r of walls) {
         const cx = clamp(px, r.x0, r.x1), cy = clamp(py, r.y0, r.y1);
         const dx = px - cx, dy = py - cy;
         const d = Math.hypot(dx, dy);
-        const range = 95;
         if (d >= range || d < 0.001) continue;
-        const k = ((1 - d / range) ** 2) * 2.2;
-        ax += (dx / d) * k;
-        ay += (dy / d) * k;
+        const f = ((1 - d / range) ** 2) * 2.2;
+        ax += (dx / d) * f;
+        ay += (dy / d) * f;
+      }
+      for (const o of koi) {
+        if (o === k) continue;
+        for (let i = 0; i <= N; i += 3) {
+          const q = o.spine[i];
+          const dx = px - q.x, dy = py - q.y;
+          const d = Math.hypot(dx, dy);
+          const rr = 80 * S;
+          if (d >= rr || d < 0.001) continue;
+          const f = ((1 - d / rr) ** 2) * (food ? 0.5 : 1.4);
+          ax += (dx / d) * f;
+          ay += (dy / d) * f;
+        }
       }
     }
-    const want = Math.atan2(ay, ax);
-    let diff = want - heading;
+    let diff = Math.atan2(ay, ax) - k.heading;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     // turning radius grows with speed so the body can't fold into a U
-    const maxTurn = Math.max(1.1, speed / 40) * dt;
-    heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * 2.1) * 0.15 * dt;
+    const agile = food && goalD < 80 * S ? 2.2 : 1;
+    const maxTurn = Math.max(1, k.speed / (38 * S)) * agile * dt;
+    k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * 2.1 + k.phase) * 0.12 * dt;
 
-    const targetSpeed = clamp(distLead * 1.1, 22, 95);
-    speed += (targetSpeed - speed) * Math.min(1, dt * 2);
-    head.x += Math.cos(heading) * speed * dt;
-    head.y += Math.sin(heading) * speed * dt;
+    // burst-and-glide: tail beats hard to speed up, then the koi coasts
+    let vmax, demand;
+    if (food) {
+      // eager but not a vacuum: after each gulp the koi noses around slowly
+      vmax = clamp(goalD * 1.2, 15 * S, 105 * S);
+      demand = k.eatCd > 0 ? 0.3 : 0.9;
+      k.glide = 0;
+    } else {
+      vmax = clamp(goalD * 1.1, 22 * S, 80 * S) * k.tempo;
+      k.glide = Math.max(0, k.glide - dt);
+      if (k.glide === 0 && Math.random() < dt * 0.15) k.glide = rand(1, 2.5);
+      demand = k.glide > 0 ? 0.04 : clamp((vmax - k.speed) / (25 * S), 0, 1) * 0.8 + 0.2;
+    }
+    k.beat += (demand - k.beat) * Math.min(1, dt * 3);
+    const accel = k.beat * vmax * 1.25 - k.speed;
+    k.speed = Math.max(8 * S, k.speed + accel * dt * (accel > 0 ? 1.1 : 0.35));
+    head.x += Math.cos(k.heading) * k.speed * dt;
+    head.y += Math.sin(k.heading) * k.speed * dt;
     pushOut(head, envelope(0));
-    phase += dt * (3 + speed * 0.05);
+    k.phase += dt * (2.2 + 7 * k.beat);
 
-    // body: follow the leader with a bend limit so it can't fold over itself
-    const MAX_BEND = 0.12;
-    for (let i = 1; i <= N; i++) {
-      const a = spine[i - 1], b = spine[i];
-      let ang = Math.atan2(b.y - a.y, b.x - a.x);
-      const prevAng = i === 1 ? heading + Math.PI
-        : Math.atan2(a.y - spine[i - 2].y, a.x - spine[i - 2].x);
-      let d = Math.atan2(Math.sin(ang - prevAng), Math.cos(ang - prevAng));
-      ang = prevAng + clamp(d, -MAX_BEND, MAX_BEND);
-      b.x = a.x + Math.cos(ang) * SEG;
-      b.y = a.y + Math.sin(ang) * SEG;
-      pushOut(b, envelope((i / N) * TOTAL));
+    // eat one pellet per gulp, then a pause before the next
+    if (food && k.eatCd === 0 && dist(food, head) < 9 * S + 5) {
+      pellets.splice(pellets.indexOf(food), 1);
+      ripples.push({ x: food.x, y: food.y, age: 0, life: 0.9, maxR: 22 * S });
+      k.eatCd = rand(0.7, 1.4);
+    }
+    // the snout bumps floating feed aside
+    const bump = 16 * S;
+    for (const p of pellets) {
+      if (!p.landed) continue;
+      const dx = p.x - head.x, dy = p.y - head.y;
+      const d = Math.hypot(dx, dy);
+      if (d < bump && d > 0.01) {
+        p.x += (dx / d) * (bump - d) * 4 * dt + Math.cos(k.heading) * k.speed * 0.3 * dt;
+        p.y += (dy / d) * (bump - d) * 4 * dt + Math.sin(k.heading) * k.speed * 0.3 * dt;
+      }
     }
 
-    // stuck somewhere it can't get out of (e.g. layout shifted under it)
-    if (clearance(head.x, head.y, obstacles) < 2) spawn();
+    // body: follow the leader with a bend limit so it can't fold over itself
+    const MAX_BEND = 0.13;
+    const sg = seg();
+    for (let i = 1; i <= N; i++) {
+      const a = k.spine[i - 1], b = k.spine[i];
+      let ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const prevAng = i === 1 ? k.heading + Math.PI
+        : Math.atan2(a.y - k.spine[i - 2].y, a.x - k.spine[i - 2].x);
+      const d = Math.atan2(Math.sin(ang - prevAng), Math.cos(ang - prevAng));
+      ang = prevAng + clamp(d, -MAX_BEND, MAX_BEND);
+      b.x = a.x + Math.cos(ang) * sg;
+      b.y = a.y + Math.sin(ang) * sg;
+      pushOut(b, envelope((i / N) * TOTAL));
+    }
+  }
+
+  function update(dt) {
+    time += dt;
+    updatePellets(dt);
+    updateWater(dt);
+    for (const r of ripples) r.age += dt;
+    ripples = ripples.filter((r) => r.age < r.life);
+    for (const k of koi) updateKoi(k, dt);
+    // a koi whose head got trapped by a layout change starts over somewhere open
+    for (let i = 0; i < koi.length; i++) {
+      const h = koi[i].spine[0];
+      if (clearance(h.x, h.y, obstacles) < 2) {
+        const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, koi[i], true);
+        if (at) koi[i] = newKoi(at);
+      }
+    }
   }
 
   // ---- rendering ----------------------------------------------------------
-  function palette() {
-    const dark = document.body.classList.contains("dark-mode");
-    return dark
-      ? { white: "#e2e8f0", orange: "#fb923c", black: "#64748b", fin: "#94a3b8", eye: "#0f172a", lead: "#60a5fa" }
-      : { white: "#94a3b8", orange: "#f97316", black: "#1e293b", fin: "#94a3b8", eye: "#0f172a", lead: "#2563eb" };
+  const isDark = () => document.body.classList.contains("dark-mode");
+
+  // fin-ray glyph for a direction
+  function rayGlyph(ux, uy) {
+    let a = Math.atan2(uy, ux);
+    if (a < 0) a += Math.PI;
+    if (a < Math.PI / 8 || a >= (7 * Math.PI) / 8) return "-";
+    if (a < (3 * Math.PI) / 8) return "\\";
+    if (a < (5 * Math.PI) / 8) return "|";
+    return "/";
   }
 
-  function cellBlocked(col, row) {
-    const x0 = col * cellW - 4, y0 = row * CELL_H - 4;
-    const x1 = x0 + cellW + 8, y1 = y0 + CELL_H + 8;
-    for (const r of obstacles) {
-      if (x0 < r.x1 && x1 > r.x0 && y0 < r.y1 && y1 > r.y0) return true;
-    }
-    return false;
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    if (!spine.length) return;
-    const pal = palette();
-
-    // rendered spine = physics spine + travelling swim wave
-    const amp = 3 + Math.min(speed, 95) * 0.045;
-    const q = spine.map((p, i) => {
-      const s = (i / N) * TOTAL;
-      const a = spine[Math.max(0, i - 1)], b = spine[Math.min(N, i + 1)];
-      const tx = a.x - b.x, ty = a.y - b.y;
-      const tl = Math.hypot(tx, ty) || 1;
-      const nx = -ty / tl, ny = tx / tl;
-      const w = amp * Math.pow(Math.min(s, 1.1), 1.4) * Math.sin(phase - s * 5.5);
-      return { x: p.x + nx * w, y: p.y + ny * w, fx: tx / tl, fy: ty / tl, nx, ny, s };
-    });
-
-    // fins: [s, size] — pectoral then pelvic
-    const fins = [];
-    for (const [s, size] of [[0.2, 1], [0.58, 0.55]]) {
-      const idx = Math.round((s / TOTAL) * N);
-      const p = q[idx];
-      for (const side of [-1, 1]) {
-        const flap = 0.95 + 0.3 * Math.sin(phase * 0.6 + side * 1.3 + s * 4);
-        // backward direction rotated outward by `flap`
-        const axx = -p.fx * Math.cos(flap) + p.nx * side * Math.sin(flap);
-        const axy = -p.fy * Math.cos(flap) + p.ny * side * Math.sin(flap);
-        const a = MAX_R * 1.0 * size, bb = MAX_R * 0.38 * size;
-        const r0 = bodyR(s) * 0.75;
-        fins.push({
-          cx: p.x + p.nx * side * r0 + axx * a * 0.85,
-          cy: p.y + p.ny * side * r0 + axy * a * 0.85,
-          ux: axx, uy: axy, a, b: bb,
+  // Tilde water: evenly scattered `-` / `~` glyphs that drift on a current and
+  // shimmer. Seeded on a jittered grid so they spread out instead of clumping.
+  function seedWater() {
+    const gap = 40;
+    waterDots = [];
+    for (let y = gap / 2; y < H; y += gap) {
+      for (let x = gap / 2; x < W; x += gap) {
+        waterDots.push({
+          x: x + rand(-gap / 2, gap / 2), y: y + rand(-gap / 2, gap / 2),
+          ph: rand(0, 6.28), tw: rand(1.2, 3.2), sp: rand(0.7, 1.4),
         });
       }
     }
+  }
 
-    // eyes
-    const eyes = [];
-    {
-      const idx = Math.round((0.07 / TOTAL) * N);
-      const p = q[idx], r = bodyR(0.07) * 0.6;
-      for (const side of [-1, 1]) eyes.push({ x: p.x + p.nx * side * r, y: p.y + p.ny * side * r });
+  function updateWater(dt) {
+    for (const d of waterDots) {
+      d.x += (14 + 9 * Math.sin(d.y * 0.012 + time * 0.35)) * d.sp * dt;
+      d.y += 6 * Math.sin(d.x * 0.01 + time * 0.6 + d.ph) * dt;
+      if (d.x > W) d.x -= W;
+      if (d.y < 0) d.y += H; else if (d.y > H) d.y -= H;
+    }
+  }
+
+  function drawWater(dark) {
+    ctx.fillStyle = dark ? "#94a3b8" : "#64748b";
+    for (const d of waterDots) {
+      const col = Math.floor(d.x / CELL), row = Math.floor(d.y / CELL);
+      if (isBlocked(col, row)) continue;
+      const tw = 0.5 + 0.5 * Math.sin(time * d.tw + d.ph);
+      ctx.globalAlpha = 0.1 + 0.26 * tw;
+      ctx.fillText(tw > 0.7 ? "~" : "-", (col + 0.5) * CELL, (row + 0.5) * CELL);
+    }
+  }
+
+  // Rasterise one koi into `cells` (Map key -> tile).
+  function rasterKoi(k, cells, dark) {
+    const R = maxR();
+    const base = rgb((dark && k.v.dark?.base) || k.v.base);
+    const patch = rgb(k.v.patch);
+    const spot = k.v.spot ? rgb(k.v.spot) : null;
+    const fin = rgb(k.v.fin);
+    const amp = (2.5 + 7 * k.beat) * S;
+
+    const q = k.spine.map((p, i) => {
+      const s = (i / N) * TOTAL;
+      const a = k.spine[Math.max(0, i - 1)], b = k.spine[Math.min(N, i + 1)];
+      const tx = a.x - b.x, ty = a.y - b.y;
+      const tl = Math.hypot(tx, ty) || 1;
+      const nx = -ty / tl, ny = tx / tl;
+      const w = amp * waveEnv(s) * Math.sin(k.phase - s * 5.2);
+      return { x: p.x + nx * w, y: p.y + ny * w, fx: tx / tl, fy: ty / tl, nx, ny, s };
+    });
+
+    // pectoral fins paddle when slow and fold back when fast; pelvics follow
+    const slow = 1 - Math.min(1, k.speed / (70 * S));
+    const fins = [];
+    for (const [s, size] of [[0.19, 1], [0.55, 0.5]]) {
+      const p = q[Math.round((s / TOTAL) * N)];
+      for (const side of [-1, 1]) {
+        const spread = 0.55 + 0.6 * slow + (0.08 + 0.3 * slow) * Math.sin(k.phase * 0.5 + side * 1.4 + s * 4);
+        const ux = -p.fx * Math.cos(spread) + p.nx * side * Math.sin(spread);
+        const uy = -p.fy * Math.cos(spread) + p.ny * side * Math.sin(spread);
+        const a = R * 1.15 * size, b = R * 0.55 * size;
+        const r0 = bodyR(s) * 0.7;
+        fins.push({ cx: p.x + p.nx * side * r0 + ux * a * 0.8, cy: p.y + p.ny * side * r0 + uy * a * 0.8, ux, uy, a, b });
+      }
     }
 
-    // bounding box in cells
+    const eyeCells = new Set();
+    {
+      const p = q[Math.round((0.06 / TOTAL) * N)], r = bodyR(0.06) * 0.62;
+      for (const side of [-1, 1]) {
+        eyeCells.add(`${Math.floor((p.x + p.nx * side * r) / CELL)},${Math.floor((p.y + p.ny * side * r) / CELL)}`);
+      }
+    }
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of q) {
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
       minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
     }
-    const pad = MAX_R * 1.8;
-    const c0 = Math.max(0, Math.floor((minX - pad) / cellW)), c1 = Math.ceil((maxX + pad) / cellW);
-    const r0 = Math.max(0, Math.floor((minY - pad) / CELL_H)), r1 = Math.ceil((maxY + pad) / CELL_H);
-
-    const eyeCells = new Set(eyes.map((e) => `${Math.floor(e.x / cellW)},${Math.floor(e.y / CELL_H)}`));
+    const pad = R * 2;
+    const c0 = Math.max(0, Math.floor((minX - pad) / CELL)), c1 = Math.min(cols - 1, Math.ceil((maxX + pad) / CELL));
+    const r0 = Math.max(0, Math.floor((minY - pad) / CELL)), r1 = Math.min(rows - 1, Math.ceil((maxY + pad) / CELL));
+    const tail = q[N - Math.round(N * (TOTAL - 1) / TOTAL)];
 
     for (let row = r0; row <= r1; row++) {
       for (let col = c0; col <= c1; col++) {
-        const px = (col + 0.5) * cellW, py = (row + 0.5) * CELL_H;
+        const key = `${col},${row}`;
+        const prev = cells.get(key);
+        if (prev && prev.kind === "body") continue;
+        const px = (col + 0.5) * CELL, py = (row + 0.5) * CELL;
 
-        // nearest point on the spine polyline
         let best = Infinity, bs = 0, blat = 0;
         for (let j = 0; j < N; j++) {
           const A = q[j], B = q[j + 1];
           const vx = B.x - A.x, vy = B.y - A.y;
           const len2 = vx * vx + vy * vy || 1;
-          const t = clamp(((px - A.x) * vx + (py - A.y) * vy) / len2, 0, 1);
-          const cx = A.x + vx * t, cy = A.y + vy * t;
+          const tt = clamp(((px - A.x) * vx + (py - A.y) * vy) / len2, 0, 1);
+          const cx = A.x + vx * tt, cy = A.y + vy * tt;
           const d = Math.hypot(px - cx, py - cy);
           if (d < best) {
             best = d;
-            bs = A.s + (B.s - A.s) * t;
-            // signed lateral: + on the left of the swim direction
+            bs = A.s + (B.s - A.s) * tt;
             blat = ((px - cx) * -vy + (py - cy) * vx) < 0 ? d : -d;
           }
         }
 
-        let ch = null, color = null, alpha = 1;
-
+        let cell = null;
         if (bs <= 1) {
           const r = bodyR(bs);
           if (best < r) {
             const depth = 1 - best / r;
-            const t = blat / r;
-            if (eyeCells.has(`${col},${row}`)) {
-              ch = "o"; color = pal.eye;
-            } else {
-              ch = RAMP[Math.min(RAMP.length - 1, Math.floor(depth * RAMP.length))];
-              color = inBlobs(BLACK, bs, t) ? pal.black : inBlobs(ORANGE, bs, t) ? pal.orange : pal.white;
-              alpha = 0.55 + 0.45 * depth;
-            }
+            const tn = blat / r;
+            let c = base;
+            if (inBlobs(k.pat.patches, bs, tn, k.pat)) c = patch;
+            if (spot && inBlobs(k.pat.spots, bs, tn, k.pat)) c = spot;
+            // round-body shading: darker toward the flanks, a little sheen on the back
+            c = mixA(c, [20, 18, 18], (1 - depth) ** 1.6 * 0.38);
+            if (depth > 0.72) c = mixA(c, [255, 255, 255], (depth - 0.72) * 0.35);
+            cell = eyeCells.has(key)
+              ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: [240, 240, 240], ga: 1 }
+              : {
+                kind: "body", fill: c,
+                glyph: BODY_GLYPHS[Math.min(BODY_GLYPHS.length - 1, Math.floor(depth * BODY_GLYPHS.length))],
+                gcol: lum(c) > 0.5 ? mixA(c, INK, 0.45) : mixA(c, PAPER, 0.4), ga: 0.45,
+              };
           }
         } else {
-          // forked tail fin
+          // long forked tail fin
           const u = (bs - 1) / (TOTAL - 1);
-          const fr = MAX_R * (0.25 + 0.7 * u);
-          const notch = u > 0.65 && Math.abs(blat) < fr * (u - 0.65) * 1.6;
+          const fr = R * (0.2 + 0.95 * u ** 0.8);
+          const notch = u > 0.55 && Math.abs(blat) < fr * (u - 0.55) * 1.4;
           if (best < fr && !notch) {
-            ch = FIN_RAMP[Math.min(FIN_RAMP.length - 1, Math.floor((1 - best / fr) * FIN_RAMP.length))];
-            color = pal.fin; alpha = 0.75;
+            cell = { kind: "fin", fill: fin, fa: 0.4 + 0.25 * (1 - best / fr), glyph: rayGlyph(px - tail.x, py - tail.y) };
           }
         }
-
-        if (!ch) {
+        if (!cell) {
           for (const f of fins) {
             const dx = px - f.cx, dy = py - f.cy;
             const u = dx * f.ux + dy * f.uy, v = -dx * f.uy + dy * f.ux;
             const e = (u / f.a) ** 2 + (v / f.b) ** 2;
             if (e < 1) {
-              ch = FIN_RAMP[Math.min(FIN_RAMP.length - 1, Math.floor((1 - e) * FIN_RAMP.length))];
-              color = pal.fin; alpha = 0.7;
+              cell = { kind: "fin", fill: fin, fa: 0.35 + 0.3 * (1 - e), glyph: rayGlyph(f.ux, f.uy) };
               break;
             }
           }
         }
+        if (cell && (!prev || cell.kind === "body")) {
+          cell.fade = k.fade;
+          cells.set(key, cell);
+        }
+      }
+    }
+  }
 
-        if (!ch || cellBlocked(col, row)) continue;
-        ctx.globalAlpha = alpha * fade;
-        ctx.fillStyle = color;
-        ctx.fillText(ch, col * cellW, row * CELL_H);
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    if (!active) return;
+    const dark = isDark();
+
+    ctx.font = `${GLYPH_PX}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    drawWater(dark);
+
+    // ripple rings
+    ctx.fillStyle = dark ? "#cbd5e1" : "#475569";
+    for (const r of ripples) {
+      const p = r.age / r.life;
+      const rad = r.maxR * (1 - (1 - p) ** 2);
+      const seen = new Set();
+      const steps = Math.max(12, Math.ceil((2 * Math.PI * rad) / (CELL * 0.8)));
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const col = Math.floor((r.x + Math.cos(a) * rad) / CELL), row = Math.floor((r.y + Math.sin(a) * rad) / CELL);
+        const key = col * 100003 + row;
+        if (seen.has(key) || isBlocked(col, row)) continue;
+        seen.add(key);
+        ctx.globalAlpha = 0.45 * (1 - p);
+        ctx.fillText("~", (col + 0.5) * CELL, (row + 0.5) * CELL);
       }
     }
 
-    // lead pixel and its little wake
-    ctx.fillStyle = pal.lead;
-    trail.forEach((p, i) => {
-      const col = Math.floor(p.x / cellW), row = Math.floor(p.y / CELL_H);
-      if (cellBlocked(col, row)) return;
-      ctx.globalAlpha = (0.45 - i * 0.08) * fade;
-      ctx.fillText(".", col * cellW, row * CELL_H);
-    });
-    const lc = Math.floor(lead.x / cellW), lr = Math.floor(lead.y / CELL_H);
-    if (!cellBlocked(lc, lr)) {
-      ctx.globalAlpha = (0.75 + 0.25 * Math.sin(time * 4)) * fade;
-      ctx.fillText("*", lc * cellW, lr * CELL_H);
+    if (!koi.length) { ctx.globalAlpha = 1; return; }
+    const cells = new Map();
+    for (const k of koi) rasterKoi(k, cells, dark);
+
+    // soft tile shadow, offset like light from the upper left
+    ctx.fillStyle = dark ? "#000000" : "#94a3b8";
+    for (const [key, c] of cells) {
+      if (c.kind !== "body") continue;
+      const [col, row] = key.split(",").map(Number);
+      const sc = col + 1, sr = row + 2;
+      if (cells.has(`${sc},${sr}`) || isBlocked(sc, sr)) continue;
+      ctx.globalAlpha = (dark ? 0.35 : 0.22) * c.fade;
+      ctx.fillRect(sc * CELL + 0.5, sr * CELL + 0.5, CELL - 1, CELL - 1);
+    }
+
+    // feed: little bobbing pellets, each with its own shadow
+    const ps = Math.max(4, Math.round(5 * S + 1));
+    for (const p of pellets) {
+      const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
+      if (isBlocked(col, row) || cells.get(`${col},${row}`)?.kind === "body") continue;
+      const fade = Math.min(1, (p.life - p.age) / 3);
+      const fly = p.landed ? 1 : p.fly / p.flyDur;
+      const lift = p.landed ? 0 : Math.sin(fly * Math.PI) * 10 * S; // arc while airborne
+      const jx = Math.sin(time * 7 + p.seed) * 0.9 + Math.sin(time * 13 + p.seed * 2) * 0.4;
+      const jy = Math.cos(time * 6.3 + p.seed * 1.7) * 0.9;
+      const x = p.x + jx - ps / 2, y = p.y + jy - ps / 2;
+      ctx.globalAlpha = (dark ? 0.45 : 0.3) * fade;
+      ctx.fillStyle = dark ? "#000000" : "#94a3b8";
+      ctx.fillRect(Math.round(x + 2 + lift * 0.3), Math.round(y + 3 + lift * 0.6), ps, ps);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = "#8a5520";
+      ctx.fillRect(Math.round(x), Math.round(y - lift), ps, ps);
+      ctx.fillStyle = "#c58a45";
+      ctx.fillRect(Math.round(x), Math.round(y - lift), Math.ceil(ps / 2), Math.ceil(ps / 2));
+    }
+
+    // koi tiles
+    for (const [key, c] of cells) {
+      const [col, row] = key.split(",").map(Number);
+      if (isBlocked(col, row)) continue;
+      const x = col * CELL, y = row * CELL;
+      if (c.kind === "body") {
+        ctx.globalAlpha = 0.96 * c.fade;
+        ctx.fillStyle = css(c.fill);
+        ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+        if (c.glyph !== " ") {
+          ctx.globalAlpha = c.ga * c.fade;
+          ctx.fillStyle = css(c.gcol);
+          ctx.fillText(c.glyph, x + CELL / 2, y + CELL / 2 + 0.5);
+        }
+      } else {
+        // fins: translucent tiles with ray glyphs
+        ctx.globalAlpha = c.fa * c.fade;
+        ctx.fillStyle = css(c.fill);
+        ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+        ctx.globalAlpha = 0.55 * c.fade;
+        ctx.fillStyle = css(lum(c.fill) > 0.5 ? mixA(c.fill, INK, 0.5) : mixA(c.fill, PAPER, 0.5));
+        ctx.fillText(c.glyph, x + CELL / 2, y + CELL / 2 + 0.5);
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -450,12 +753,36 @@ function initKoi(hero) {
       running = false;
       cancelAnimationFrame(raf);
     }
-    if (active && reduceMotion) draw(); // static koi
+    if (active && reduceMotion) draw(); // static pond
   }
 
   new ResizeObserver(resize).observe(hero);
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; syncLoop(); }).observe(hero);
   document.addEventListener("visibilitychange", syncLoop);
   document.fonts?.ready.then(() => { collectObstacles(); });
+  if (!reduceMotion) hero.addEventListener("click", onClick);
   resize();
+
+  if (import.meta.env?.DEV) {
+    // dev-only hook for stepping the simulation without animation frames
+    window.__koi = {
+      step(n, dt = 1 / 60) {
+        let minClear = Infinity;
+        for (let s = 0; s < n; s++) {
+          update(dt);
+          for (const k of koi) for (let i = 0; i <= N; i++) {
+            const ss = (i / N) * TOTAL;
+            minClear = Math.min(minClear, clearance(k.spine[i].x, k.spine[i].y, obstacles) - (ss <= 1 ? bodyR(ss) : maxR()));
+          }
+        }
+        draw();
+        return { minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length };
+      },
+      feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
+      heads: () => koi.map((k) => [k.spine[0].x | 0, k.spine[0].y | 0, k.v.name]),
+    };
+  }
 }
+
+const hero = document.querySelector(".hero");
+if (hero) initPond(hero);

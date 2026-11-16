@@ -78,7 +78,7 @@ html, body {
   z-index: 0;
 }
 
-@media (max-width: 899px) {
+@media (max-width: 819px) {
   .koi-canvas { display: none; }
 }
 
