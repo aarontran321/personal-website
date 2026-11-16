@@ -28,8 +28,10 @@ const VARIETIES = [
 
 function initPond(hero) {
   // ---- tunables -----------------------------------------------------------
-  const CELL = 6; // square tile size, px
-  const GLYPH_PX = 6;
+  // square tile size, px. Set in resize(): smaller windows get smaller tiles so a
+  // koi keeps the same number of tiles (the same detail) even as it shrinks.
+  let CELL = 6;
+  let GLYPH_PX = 6;
   const TOTAL = 1.3; // spine length incl. tail fin, in body lengths
   const N = 28; // spine segments
   const CLEAR = 14; // minimum gap kept between a koi and any text
@@ -401,10 +403,12 @@ function initPond(hero) {
   function resize() {
     W = hero.clientWidth;
     H = hero.clientHeight;
-    // Tiles are a fixed 6px, so a koi's detail is its size: keep koi near full size
-    // on half-screen windows (and only a little smaller on phones) rather than
-    // shrinking them into a handful of blocks. Wide screens still grow them.
+    // Koi shrink a little on narrower windows so they don't crowd the pond, and
+    // grow on wide screens.
     S = W < 600 ? 0.8 : clamp(W / 1500, 0.92, 1.35);
+    // ~42 tiles per body length at every size: 6px tiles on big screens, 5px on
+    // half-screen windows, 4px on phones.
+    CELL = GLYPH_PX = clamp(Math.round(5.1 * S), 4, 6);
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     waterLayer.width = Math.round(W * dpr);
     waterLayer.height = Math.round(H * dpr);
@@ -696,7 +700,7 @@ function initPond(hero) {
           vx: rand(-6, 6), vy: -rand(16, 28),
         });
       }
-      k.eatCd = rand(0.5, 1);
+      k.eatCd = rand(0.25, 0.55);
       // after a few bites it's had enough and swims off, making room for others
       k.bites = (k.bites || 0) + 1;
       if (k.bites >= (k.appetite ||= Math.ceil(rand(2.5, 6)))) {
