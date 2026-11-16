@@ -489,7 +489,7 @@ function initPond(hero) {
         bubbles.push({
           x: food.x + rand(-5, 5) * S, y: food.y + rand(-5, 5) * S,
           age: -i * rand(0.12, 0.22), life: rand(0.8, 1.1), size: rand(4.5, 7.5) * S,
-          vx: rand(-6, 6), vy: -rand(8, 18),
+          vx: rand(-6, 6), vy: -rand(16, 28),
         });
       }
       k.eatCd = rand(0.7, 1.4);
@@ -827,37 +827,41 @@ function initPond(hero) {
     ctx.globalAlpha = 1;
   }
 
-  // Eating bubbles: swell, wobble up, then pop into a little burst.
+  // Eating bubbles, in ASCII: `.` -> `o` -> `O` as they swell and rise, then
+  // `*` as they pop, with `'` specks flying out. Snapped to the tile grid.
   function drawBubbles(dark) {
-    const rim = dark ? "#e2e8f0" : "#64748b";
+    const ink = dark ? "#e2e8f0" : "#475569";
+    const at = (x, y, ch, px, alpha) => {
+      const col = Math.floor(x / CELL), row = Math.floor(y / CELL);
+      if (isBlocked(col, row)) return;
+      ctx.font = `bold ${px}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.globalAlpha = alpha;
+      const x0 = (col + 0.5) * CELL, y0 = (row + 0.5) * CELL;
+      ctx.strokeText(ch, x0, y0); // dark outline so it reads on fish and water alike
+      ctx.fillText(ch, x0, y0);
+    };
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.fillStyle = "#ffffff";
     for (const b of bubbles) {
       if (b.age < 0) continue;
-      if (isBlocked(Math.floor(b.x / CELL), Math.floor(b.y / CELL))) continue;
       const p = b.age / b.life;
-      if (p < 0.75) {
-        const r = b.size * (0.35 + 0.65 * (p / 0.75)) + Math.sin(b.age * 18) * 0.3;
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = dark ? "rgba(226,232,240,0.18)" : "rgba(255,255,255,0.75)";
-        ctx.fill();
-        ctx.lineWidth = 1.2;
-        ctx.strokeStyle = rim;
-        ctx.stroke();
-        ctx.fillStyle = "#ffffff"; // glint
-        ctx.fillRect(b.x - r * 0.45, b.y - r * 0.5, Math.max(1, r * 0.35), Math.max(1, r * 0.35));
-      } else {
-        // pop: specks fly out from where the bubble was
+      const big = Math.round(b.size * 1.9); // glyph size, px
+      if (p < 0.2) at(b.x, b.y, ".", big, 0.9);
+      else if (p < 0.45) at(b.x, b.y, "o", big, 0.95);
+      else if (p < 0.75) at(b.x, b.y, "O", big, 1);
+      else {
         const q = (p - 0.75) / 0.25;
-        const rr = b.size * (1 + q * 0.9);
-        ctx.globalAlpha = 0.85 * (1 - q);
-        ctx.fillStyle = rim;
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2 + b.size;
-          ctx.fillRect(b.x + Math.cos(a) * rr - 0.75, b.y + Math.sin(a) * rr - 0.75, 1.5, 1.5);
+        if (q < 0.4) at(b.x, b.y, "*", big, 1);
+        const rr = CELL * (1 + q * 1.5);
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+          at(b.x + Math.cos(a) * rr, b.y + Math.sin(a) * rr, "'", big, 0.85 * (1 - q));
         }
       }
     }
+    ctx.font = `${GLYPH_PX}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
   }
 
   // ---- loop & lifecycle ---------------------------------------------------
