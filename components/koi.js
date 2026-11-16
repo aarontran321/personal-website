@@ -43,6 +43,54 @@ function initPond(hero) {
   canvas.setAttribute("aria-hidden", "true");
   hero.prepend(canvas);
   const ctx = canvas.getContext("2d");
+  const waterLayer = document.createElement("canvas"); // redrawn ~12x/s, reused between frames
+  const wctx = waterLayer.getContext("2d");
+  let waterDirty = true, waterAge = 1, waterDark = null;
+  // Koi tiles: one pixel per tile in a tiny image, scaled up in a single draw
+  // and cut into squares with a repeating gap pattern. Far cheaper than
+  // thousands of fillRect calls with a colour/opacity change each.
+  const tileCanvas = document.createElement("canvas");
+  const tctx = tileCanvas.getContext("2d");
+  const koiLayer = document.createElement("canvas");
+  const kctx = koiLayer.getContext("2d");
+  let tileImg = null, tileBuf = null, gapPattern = null;
+
+  // Feeding affordances, shown only until the first feed: a corner hint and a
+  // small "click to feed" label beside the cursor over open water. The pointer
+  // cursor over open water stays after that.
+  const hint = document.createElement("div");
+  hint.className = "koi-hint";
+  hint.setAttribute("aria-hidden", "true");
+  hint.innerHTML = '<span class="koi-pellet"></span> click the water to feed the koi';
+  const label = document.createElement("div");
+  label.className = "koi-cursor-label";
+  label.setAttribute("aria-hidden", "true");
+  label.innerHTML = '<span class="koi-pellet"></span> click to feed';
+  hero.append(hint, label);
+
+  const FED_KEY = "koi-fed-count";
+  let fedMemo = null;
+  function fedCount() {
+    if (fedMemo !== null) return fedMemo;
+    try { fedMemo = Number(localStorage.getItem(FED_KEY)) || 0; } catch { fedMemo = 0; }
+    return fedMemo;
+  }
+  function noteFed() {
+    fedMemo = fedCount() + 1;
+    try { localStorage.setItem(FED_KEY, String(fedMemo)); } catch { /* private mode etc. */ }
+    hint.classList.remove("is-on"); // one feed and both hints are gone for good
+    label.classList.remove("is-on");
+  }
+  function onHover(e) {
+    const spot = feedSpot(e);
+    hero.style.cursor = spot ? "pointer" : "";
+    if (spot && fedCount() === 0) {
+      label.style.transform = `translate(${spot.x + 16}px, ${spot.y + 14}px)`;
+      label.classList.add("is-on");
+    } else {
+      label.classList.remove("is-on");
+    }
+  }
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -52,6 +100,7 @@ function initPond(hero) {
   let walls = []; // obstacles + out-of-bounds slabs (physics only)
   let blocked = new Uint8Array(0); // per-tile: 1 = touches text
   let deep = new Float32Array(0); // per-tile: 0 open water .. 1 under the text
+  let layoutSig = "";
   let koi = [], pellets = [], ripples = [], bubbles = [], waterDots = [];
   let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
@@ -70,7 +119,18 @@ function initPond(hero) {
 
   const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   const mixA = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
-  const css = (a) => `rgb(${a[0] | 0},${a[1] | 0},${a[2] | 0})`;
+  const cssCache = new Map();
+  const css = (a) => {
+    const r = a[0] & 0xfe, g = a[1] & 0xfe, b = a[2] & 0xfe; // 2-step quantise
+    const key = (r << 16) | (g << 8) | b;
+    let v = cssCache.get(key);
+    if (!v) {
+      if (cssCache.size > 4096) cssCache.clear();
+      v = `rgb(${r},${g},${b})`;
+      cssCache.set(key, v);
+    }
+    return v;
+  };
   const lum = (a) => (0.299 * a[0] + 0.587 * a[1] + 0.114 * a[2]) / 255;
 
   function rectDist(px, py, r) {
@@ -229,6 +289,11 @@ function initPond(hero) {
       { x0: -big, y0: -big, x1: 0, y1: big }, // left
       { x0: W + 380 * S, y0: -big, x1: big, y1: big }, // right: the pond carries on off-screen
     ];
+    // the masks below only need rebuilding when the text or the size moved
+    const sig = W + "x" + H + ":" + out.map((r) => `${r.x0 | 0},${r.y0 | 0},${r.x1 | 0},${r.y1 | 0}`).join(";");
+    if (sig === layoutSig) return;
+    layoutSig = sig;
+    waterDirty = true;
     // tile mask: any tile within 4px of text is off-limits for drawing
     cols = Math.ceil(W / CELL);
     rows = Math.ceil(H / CELL);
@@ -253,6 +318,29 @@ function initPond(hero) {
         }
       }
     }
+  }
+
+  function setupTileLayers() {
+    tileCanvas.width = cols;
+    tileCanvas.height = rows;
+    tileImg = tctx.createImageData(cols, rows);
+    tileBuf = tileImg.data;
+    koiLayer.width = Math.round(W * dpr);
+    koiLayer.height = Math.round(H * dpr);
+    kctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    kctx.imageSmoothingEnabled = false;
+    // the 1px seam between tiles (half a pixel either side of each boundary)
+    const pc = document.createElement("canvas");
+    const side = Math.round(CELL * dpr), seam = Math.max(1, Math.round(0.5 * dpr));
+    pc.width = pc.height = side;
+    const g = pc.getContext("2d");
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, side, seam);
+    g.fillRect(0, side - seam, side, seam);
+    g.fillRect(0, 0, seam, side);
+    g.fillRect(side - seam, 0, seam, side);
+    gapPattern = kctx.createPattern(pc, "repeat");
+    gapPattern.setTransform(new DOMMatrix([1 / dpr, 0, 0, 1 / dpr, 0, 0]));
   }
 
   // Random open spot with room for a koi, preferring the right side and
@@ -297,11 +385,17 @@ function initPond(hero) {
     H = hero.clientHeight;
     S = clamp(W / 1500, 0.6, 1.35); // wide screens get proportionally bigger koi
     dpr = Math.min(window.devicePixelRatio || 1, 2);
+    waterLayer.width = Math.round(W * dpr);
+    waterLayer.height = Math.round(H * dpr);
+    wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    waterDirty = true;
+    layoutSig = "";
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     sprites.clear(); // device pixel ratio may have changed
     collectObstacles();
+    setupTileLayers();
     seedWater();
     reconcile();
     syncLoop();
@@ -311,6 +405,7 @@ function initPond(hero) {
   function reconcile() {
     active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
     canvas.style.display = active ? "" : "none";
+    hint.style.display = label.style.display = active ? "" : "none";
     if (!active) { koi = []; pellets = []; ripples = []; bubbles = []; return; }
     for (const k of koi) {
       const h = k.spine[0];
@@ -329,13 +424,21 @@ function initPond(hero) {
   const reachable = (x, y) => clearance(x, y) >= envelope(0) * 0.9;
 
   // A handful of feed bursts out from the click point and scatters around it.
-  function onClick(e) {
-    if (!active) return;
-    if (e.target.closest("a, button, input, textarea, select, label")) return;
-    if (String(window.getSelection?.() || "").length) return;
+  // Can food be dropped here? Open water only: not on text, links or the edges.
+  function feedSpot(e) {
+    if (!active || e.target.closest("a, button, input, textarea, select, label")) return null;
     const hr = hero.getBoundingClientRect();
     const x = e.clientX - hr.left, y = e.clientY - hr.top;
-    if (clearance(x, y) < 24) return; // clicked on text
+    if (clearance(x, y, obstacles) < 24 || clearance(x, y) < 24) return null;
+    return { x, y };
+  }
+
+  function onClick(e) {
+    if (String(window.getSelection?.() || "").length) return;
+    const spot = feedSpot(e);
+    if (!spot) return;
+    const { x, y } = spot;
+    noteFed();
     const n = 8 + Math.floor(Math.random() * 5);
     for (let i = 0; i < n && pellets.length < MAX_PELLETS; i++) {
       const a = rand(0, Math.PI * 2);
@@ -590,6 +693,7 @@ function initPond(hero) {
 
   function update(dt) {
     time += dt;
+    waterAge += dt;
     updatePellets(dt);
     updateWater(dt);
     for (const b of bubbles) {
@@ -671,24 +775,69 @@ function initPond(hero) {
   }
 
   function drawWater(dark) {
-    const color = dark ? "#cbd5e1" : "#475569";
-    for (const d of waterDots) {
-      const col = Math.floor(d.x / CELL), row = Math.floor(d.y / CELL);
-      if (isBlocked(col, row)) continue;
-      const tw = 0.5 + 0.5 * Math.sin(time * d.tw + d.ph);
-      ctx.globalAlpha = 0.16 + 0.34 * tw;
-      stamp(tw > 0.7 ? "~" : "-", color, col, row);
+    // the dashes hop a whole tile at a time, so ~12 redraws a second looks the same as 60
+    if (waterDirty || waterAge >= 0.08 || dark !== waterDark) {
+      waterDirty = false;
+      waterAge = 0;
+      waterDark = dark;
+      const color = dark ? "#cbd5e1" : "#475569";
+      wctx.clearRect(0, 0, W, H);
+      for (const d of waterDots) {
+        const col = Math.floor(d.x / CELL), row = Math.floor(d.y / CELL);
+        if (isBlocked(col, row)) continue;
+        const tw = 0.5 + 0.5 * Math.sin(time * d.tw + d.ph);
+        wctx.globalAlpha = 0.16 + 0.34 * tw;
+        wctx.drawImage(glyph(tw > 0.7 ? "~" : "-", color), col * CELL, row * CELL, CELL, CELL);
+      }
     }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(waterLayer, 0, 0, W, H);
+  }
+
+  // A koi's pattern never changes, so its colours are worked out once into a
+  // table over (along the body, across the body) instead of every frame.
+  const PAT_S = 141, PAT_T = 33;
+  function buildPatternTable(k, dark) {
+    const base = rgb((dark && k.v.dark?.base) || k.v.base);
+    const patch = rgb(k.v.patch);
+    const spot = k.v.spot ? rgb(k.v.spot) : null;
+    const tab = new Float32Array(PAT_S * PAT_T * 5); // r, g, b, shade strength, ridge
+    for (let si = 0; si < PAT_S; si++) {
+      const bs = si / (PAT_S - 1);
+      for (let tj = 0; tj < PAT_T; tj++) {
+        const tn = (tj / (PAT_T - 1)) * 2 - 1;
+        // pattern with soft edges: tiles on a patch border blend both colours
+        let c = base;
+        const pf = blobField(k.pat.patches, bs, tn, k.pat);
+        if (pf < 0.18) c = mixA(base, patch, clamp((0.18 - pf) / 0.36, 0, 1));
+        if (spot) {
+          const sf = blobField(k.pat.spots, bs, tn, k.pat);
+          if (sf < 0.15) c = mixA(c, spot, clamp((0.15 - sf) / 0.3, 0, 1));
+        }
+        // pale, slightly pink nose like real koi
+        if (bs < 0.05) c = mixA(c, [246, 214, 200], (0.05 - bs) * 10);
+        // scales: a faint offset-row lattice that rides along the body
+        const row2 = Math.floor(bs * 70), colL = Math.floor((tn + 1) * 5 + (row2 & 1) * 0.5);
+        if (bs > 0.2 && ((row2 + colL) & 1)) c = mixA(c, [255, 255, 255], 0.07);
+        // dorsal fin: a thin darker ridge down the middle of the back
+        const ridge = bs > 0.32 && bs < 0.72 && Math.abs(tn) < 0.1;
+        if (ridge) c = mixA(c, [20, 18, 18], 0.16);
+        const i = (si * PAT_T + tj) * 5;
+        tab[i] = c[0]; tab[i + 1] = c[1]; tab[i + 2] = c[2];
+        tab[i + 3] = lum(c) > 0.7 ? 0.3 : 0.4;
+        tab[i + 4] = ridge ? 1 : 0;
+      }
+    }
+    return tab;
   }
 
   // Rasterise one koi into `cells` (Map key -> tile).
   function rasterKoi(k, cells, dark) {
     KS = k.size;
     const R = maxR();
-    const base = rgb((dark && k.v.dark?.base) || k.v.base);
-    const patch = rgb(k.v.patch);
-    const spot = k.v.spot ? rgb(k.v.spot) : null;
     const fin = rgb(k.v.fin);
+    if (!k.tab || k.tabDark !== dark) { k.tab = buildPatternTable(k, dark); k.tabDark = dark; }
+    const tab = k.tab;
     const amp = (2.5 + 3.5 * k.beat + 2.5 * Math.min(1, k.speed / (80 * S))) * S;
 
     const q = k.spine.map((p, i) => {
@@ -781,25 +930,19 @@ function initPond(hero) {
           if (best < r) {
             const depth = 1 - best / r;
             const tn = blat / r;
-            // pattern with soft edges: tiles on a patch border blend both colours
-            let c = base;
-            const pf = blobField(k.pat.patches, bs, tn, k.pat);
-            if (pf < 0.18) c = mixA(base, patch, clamp((0.18 - pf) / 0.36, 0, 1));
-            if (spot) {
-              const sf = blobField(k.pat.spots, bs, tn, k.pat);
-              if (sf < 0.15) c = mixA(c, spot, clamp((0.15 - sf) / 0.3, 0, 1));
+            // pattern colour from the koi's precomputed table, then round-body
+            // shading: darker toward the flanks, sheen along the back
+            const ti = Math.round((bs / 1) * (PAT_S - 1)) * PAT_T + Math.round(clamp((tn + 1) / 2, 0, 1) * (PAT_T - 1));
+            const sh = (1 - depth) * (1 - depth) * tab[ti * 5 + 3];
+            let cr = tab[ti * 5] + (60 - tab[ti * 5]) * sh;
+            let cg = tab[ti * 5 + 1] + (52 - tab[ti * 5 + 1]) * sh;
+            let cb = tab[ti * 5 + 2] + (48 - tab[ti * 5 + 2]) * sh;
+            if (depth > 0.7) {
+              const w = (depth - 0.7) * 0.4;
+              cr += (255 - cr) * w; cg += (255 - cg) * w; cb += (255 - cb) * w;
             }
-            // pale, slightly pink nose like real koi
-            if (bs < 0.05) c = mixA(c, [246, 214, 200], (0.05 - bs) * 10);
-            // scales: a faint offset-row lattice that rides along the body
-            const row2 = Math.floor(bs * 70), colL = Math.floor((tn + 1) * 5 + (row2 & 1) * 0.5);
-            if (bs > 0.2 && ((row2 + colL) & 1)) c = mixA(c, [255, 255, 255], 0.07);
-            // dorsal fin: a thin darker ridge down the middle of the back
-            const ridge = bs > 0.32 && bs < 0.72 && Math.abs(tn) < 0.1;
-            if (ridge) c = mixA(c, [20, 18, 18], 0.16);
-            // round-body shading: darker toward the flanks, sheen along the back
-            c = mixA(c, [60, 52, 48], (1 - depth) ** 2 * (lum(c) > 0.7 ? 0.3 : 0.4));
-            if (depth > 0.7) c = mixA(c, [255, 255, 255], (depth - 0.7) * 0.4);
+            const ridge = tab[ti * 5 + 4] === 1;
+            const c = [cr, cg, cb];
             cell = eyeCells.has(key)
               ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: "#f0f0f0", ga: 1, edge: 1 }
               : {
@@ -874,20 +1017,7 @@ function initPond(hero) {
 
     const deepTint = dark ? [40, 52, 70] : [150, 172, 196]; // murky blue-grey
 
-    // soft tile shadow, offset like light from the upper left
-    ctx.fillStyle = dark ? "#000000" : "#94a3b8";
-    for (const [key, c] of cells) {
-      if (c.kind !== "body") continue;
-      const col = key & 0xffff, row = key >>> 16;
-      const sc = col + 1, sr = row + 2;
-      if (cells.has(sr * 65536 + sc) || sc >= cols || sr >= rows) continue;
-      const sd = deep[sr * cols + sc] || 0;
-      if (sd > 0.95) continue;
-      ctx.globalAlpha = (dark ? 0.28 : 0.14) * c.fade * (1 - sd);
-      ctx.fillRect(sc * CELL + 0.5, sr * CELL + 0.5, CELL - 1, CELL - 1);
-    }
-
-    // feed: little bobbing pellets, each with its own shadow
+    // feed: little bobbing pellets, each with its own shadow (under the koi)
     const ps = Math.max(4, Math.round(5 * S + 1));
     for (const p of pellets) {
       const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
@@ -908,30 +1038,57 @@ function initPond(hero) {
       ctx.fillRect(Math.round(x), Math.round(y - lift), Math.ceil(ps / 2), Math.ceil(ps / 2));
     }
 
-    // koi tiles
+    // tile colours -> one pixel each
+    tileBuf.fill(0);
+    const put = (col, row, c, a) => {
+      const i = (row * cols + col) * 4;
+      tileBuf[i] = c[0]; tileBuf[i + 1] = c[1]; tileBuf[i + 2] = c[2]; tileBuf[i + 3] = a * 255;
+    };
+    // soft tile shadow, offset like light from the upper left
+    const shadowRGB = dark ? [0, 0, 0] : [148, 163, 184];
+    const shadowA = dark ? 0.28 : 0.14;
+    for (const [key, c] of cells) {
+      if (c.kind !== "body") continue;
+      const col = key & 0xffff, row = key >>> 16;
+      const sc = col + 1, sr = row + 2;
+      if (cells.has(sr * 65536 + sc) || sc >= cols || sr >= rows) continue;
+      const sd = deep[sr * cols + sc] || 0;
+      if (sd > 0.95) continue;
+      put(sc, sr, shadowRGB, shadowA * c.fade * (1 - sd));
+    }
+    // koi tiles; deeper water near the text fades them and tints them murky
+    const glyphs = [];
     for (const [key, c] of cells) {
       const col = key & 0xffff, row = key >>> 16;
       if (col >= cols || row >= rows) continue;
-      const x = col * CELL, y = row * CELL;
-      // deeper water near the text: fade out and take on the water's colour
       const dp = deep[row * cols + col] || 0;
       const vis = 1 - 0.86 * dp;
+      const fill = dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill;
       if (c.kind === "body") {
-        ctx.globalAlpha = 0.97 * c.edge * c.fade * vis;
-        ctx.fillStyle = css(dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill);
-        ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-        if (c.glyph !== " ") {
-          ctx.globalAlpha = c.ga * c.fade * vis;
-          stamp(c.glyph, c.gcol, col, row);
-        }
+        put(col, row, fill, 0.97 * c.edge * c.fade * vis);
+        if (c.glyph !== " ") glyphs.push(col, row, c.glyph, c.gcol, c.ga * c.fade * vis);
       } else {
-        // fins: translucent tiles with ray glyphs
-        ctx.globalAlpha = c.fa * c.fade * vis;
-        ctx.fillStyle = css(dp > 0 ? mixA(c.fill, deepTint, 0.55 * dp) : c.fill);
-        ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-        ctx.globalAlpha = 0.3 * c.fade * vis;
-        stamp(c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", col, row);
+        put(col, row, fill, c.fa * c.fade * vis);
+        glyphs.push(col, row, c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", 0.3 * c.fade * vis);
       }
+    }
+    tctx.putImageData(tileImg, 0, 0);
+    kctx.clearRect(0, 0, W, H);
+    kctx.drawImage(tileCanvas, 0, 0, cols * CELL, rows * CELL);
+    kctx.globalCompositeOperation = "destination-out";
+    kctx.fillStyle = gapPattern;
+    kctx.fillRect(0, 0, W, H);
+    kctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.drawImage(koiLayer, 0, 0, W, H);
+
+    // glyphs on top of the tiles (opacity only changes when it has to)
+    let lastA = -1;
+    for (let i = 0; i < glyphs.length; i += 5) {
+      const a = glyphs[i + 4];
+      if (a < 0.02) continue;
+      if (a !== lastA) { ctx.globalAlpha = a; lastA = a; }
+      stamp(glyphs[i + 2], glyphs[i + 3], glyphs[i], glyphs[i + 1]);
     }
     drawBubbles(dark);
     ctx.globalAlpha = 1;
@@ -978,14 +1135,18 @@ function initPond(hero) {
 
   // ---- loop & lifecycle ---------------------------------------------------
   let obstacleTimer = 0;
+  // Everything sits on a 6px tile grid, so 30fps looks the same as 60 (or 120 on
+  // ProMotion screens) at a fraction of the work.
+  const FRAME_MS = 1000 / 30;
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    raf = requestAnimationFrame(frame);
+    if (now - last < FRAME_MS - 2) return;
+    const dt = Math.min(0.066, (now - last) / 1000 || 0);
     last = now;
     obstacleTimer += dt;
     if (obstacleTimer > 0.5) { obstacleTimer = 0; collectObstacles(); }
     update(dt);
     draw();
-    raf = requestAnimationFrame(frame);
   }
 
   function syncLoop() {
@@ -1005,7 +1166,12 @@ function initPond(hero) {
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; syncLoop(); }).observe(hero);
   document.addEventListener("visibilitychange", syncLoop);
   document.fonts?.ready.then(() => { collectObstacles(); });
-  if (!reduceMotion) hero.addEventListener("click", onClick);
+  if (!reduceMotion) {
+    hero.addEventListener("click", onClick);
+    hero.addEventListener("mousemove", onHover);
+    hero.addEventListener("mouseleave", () => { hero.style.cursor = ""; label.classList.remove("is-on"); });
+    if (fedCount() === 0) hint.classList.add("is-on");
+  }
   resize();
 
   if (import.meta.env?.DEV) {
