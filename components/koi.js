@@ -28,8 +28,8 @@ const VARIETIES = [
 
 function initPond(hero) {
   // ---- tunables -----------------------------------------------------------
-  const CELL = 9; // square tile size, px
-  const GLYPH_PX = 8;
+  const CELL = 6; // square tile size, px
+  const GLYPH_PX = 6;
   const TOTAL = 1.3; // spine length incl. tail fin, in body lengths
   const N = 28; // spine segments
   const CLEAR = 14; // minimum gap kept between a koi and any text
@@ -57,8 +57,8 @@ function initPond(hero) {
   let varietyCursor = Math.floor(Math.random() * VARIETIES.length);
 
   // size-dependent geometry
-  const bodyLen = () => 160 * S;
-  const maxR = () => 23 * S;
+  const bodyLen = () => 190 * S;
+  const maxR = () => 26 * S;
   const seg = () => (bodyLen() * TOTAL) / N;
 
   // ---- helpers ------------------------------------------------------------
@@ -137,7 +137,7 @@ function initPond(hero) {
     return Math.max(s <= 1 ? bodyR(s) : 0, fins) + 9 * S * waveEnv(s) + CLEAR;
   }
 
-  const roomNeed = () => 100 * S;
+  const roomNeed = () => 115 * S;
 
   // ---- koi ----------------------------------------------------------------
   // Patterns are a few large, fairly clean-edged patches, like real koi.
@@ -163,6 +163,14 @@ function initPond(hero) {
       for (let i = 0; i < 2; i++) spots.push([rand(0.3, 0.8), rand(-0.5, 0.5), rand(0.06, 0.09), rand(0.5, 0.8)]);
     }
     return { patches, spots, wa: rand(0, 6), wb: rand(0, 6) };
+  }
+
+  // < 0 inside a patch, > 0 outside; near 0 is the patch edge
+  function blobField(blobs, s, t, pat) {
+    const wobble = 0.1 * Math.sin(s * 37 + t * 4 + pat.wa) + 0.06 * Math.sin(s * 15 - t * 7 + pat.wb);
+    let f = Infinity;
+    for (const [s0, t0, rs, rt] of blobs) f = Math.min(f, ((s - s0) / rs) ** 2 + ((t - t0) / rt) ** 2 - 1 - wobble);
+    return f;
   }
 
   function inBlobs(blobs, s, t, pat) {
@@ -286,10 +294,10 @@ function initPond(hero) {
     const hr = hero.getBoundingClientRect();
     const x = e.clientX - hr.left, y = e.clientY - hr.top;
     if (clearance(x, y) < 24) return; // clicked on text
-    const n = 24 + Math.floor(Math.random() * 14);
+    const n = 8 + Math.floor(Math.random() * 5);
     for (let i = 0; i < n && pellets.length < MAX_PELLETS; i++) {
       const a = rand(0, Math.PI * 2);
-      const reach = (10 + 150 * Math.random() ** 1.5) * S; // denser near the middle
+      const reach = (8 + 75 * Math.random() ** 1.5) * S; // denser near the middle
       pellets.push({
         x, y, sx: x, sy: y,
         tx: x + Math.cos(a) * reach, ty: y + Math.sin(a) * reach,
@@ -598,18 +606,32 @@ function initPond(hero) {
           if (best < r) {
             const depth = 1 - best / r;
             const tn = blat / r;
+            // pattern with soft edges: tiles on a patch border blend both colours
             let c = base;
-            if (inBlobs(k.pat.patches, bs, tn, k.pat)) c = patch;
-            if (spot && inBlobs(k.pat.spots, bs, tn, k.pat)) c = spot;
-            // round-body shading: darker toward the flanks, a little sheen on the back
-            c = mixA(c, [20, 18, 18], (1 - depth) ** 1.6 * 0.38);
-            if (depth > 0.72) c = mixA(c, [255, 255, 255], (depth - 0.72) * 0.35);
+            const pf = blobField(k.pat.patches, bs, tn, k.pat);
+            if (pf < 0.18) c = mixA(base, patch, clamp((0.18 - pf) / 0.36, 0, 1));
+            if (spot) {
+              const sf = blobField(k.pat.spots, bs, tn, k.pat);
+              if (sf < 0.15) c = mixA(c, spot, clamp((0.15 - sf) / 0.3, 0, 1));
+            }
+            // pale, slightly pink nose like real koi
+            if (bs < 0.05) c = mixA(c, [246, 214, 200], (0.05 - bs) * 10);
+            // scales: a faint offset-row lattice that rides along the body
+            const row2 = Math.floor(bs * 70), colL = Math.floor((tn + 1) * 5 + (row2 & 1) * 0.5);
+            if (bs > 0.2 && ((row2 + colL) & 1)) c = mixA(c, [255, 255, 255], 0.07);
+            // dorsal fin: a thin darker ridge down the middle of the back
+            const ridge = bs > 0.32 && bs < 0.72 && Math.abs(tn) < 0.1;
+            if (ridge) c = mixA(c, [20, 18, 18], 0.16);
+            // round-body shading: darker toward the flanks, sheen along the back
+            c = mixA(c, [60, 52, 48], (1 - depth) ** 2 * (lum(c) > 0.7 ? 0.3 : 0.4));
+            if (depth > 0.7) c = mixA(c, [255, 255, 255], (depth - 0.7) * 0.4);
             cell = eyeCells.has(key)
-              ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: [240, 240, 240], ga: 1 }
+              ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: [240, 240, 240], ga: 1, edge: 1 }
               : {
                 kind: "body", fill: c,
-                glyph: BODY_GLYPHS[Math.min(BODY_GLYPHS.length - 1, Math.floor(depth * BODY_GLYPHS.length))],
-                gcol: lum(c) > 0.5 ? mixA(c, INK, 0.45) : mixA(c, PAPER, 0.4), ga: 0.45,
+                glyph: ridge ? "=" : BODY_GLYPHS[Math.min(BODY_GLYPHS.length - 1, Math.floor(depth * BODY_GLYPHS.length))],
+                gcol: lum(c) > 0.5 ? mixA(c, INK, 0.45) : mixA(c, PAPER, 0.4), ga: 0.4,
+                edge: 0.55 + 0.45 * Math.min(1, depth / 0.18), // soften the silhouette
               };
           }
         } else {
@@ -618,7 +640,8 @@ function initPond(hero) {
           const fr = R * (0.2 + 0.95 * u ** 0.8);
           const notch = u > 0.55 && Math.abs(blat) < fr * (u - 0.55) * 1.4;
           if (best < fr && !notch) {
-            cell = { kind: "fin", fill: fin, fa: 0.4 + 0.25 * (1 - best / fr), glyph: rayGlyph(px - tail.x, py - tail.y) };
+            const ray = Math.floor(Math.atan2(py - tail.y, px - tail.x) * 9) & 1; // alternating fin rays
+            cell = { kind: "fin", fill: fin, fa: (0.3 + 0.3 * (1 - best / fr)) * (ray ? 1 : 0.7), glyph: rayGlyph(px - tail.x, py - tail.y) };
           }
         }
         if (!cell) {
@@ -627,7 +650,8 @@ function initPond(hero) {
             const u = dx * f.ux + dy * f.uy, v = -dx * f.uy + dy * f.ux;
             const e = (u / f.a) ** 2 + (v / f.b) ** 2;
             if (e < 1) {
-              cell = { kind: "fin", fill: fin, fa: 0.35 + 0.3 * (1 - e), glyph: rayGlyph(f.ux, f.uy) };
+              const ray = Math.floor((v / f.b + 1) * 3) & 1; // alternating fin rays
+              cell = { kind: "fin", fill: fin, fa: (0.3 + 0.35 * (1 - e)) * (ray ? 1 : 0.72), glyph: rayGlyph(f.ux, f.uy) };
               break;
             }
           }
@@ -679,7 +703,7 @@ function initPond(hero) {
       const [col, row] = key.split(",").map(Number);
       const sc = col + 1, sr = row + 2;
       if (cells.has(`${sc},${sr}`) || isBlocked(sc, sr)) continue;
-      ctx.globalAlpha = (dark ? 0.35 : 0.22) * c.fade;
+      ctx.globalAlpha = (dark ? 0.28 : 0.14) * c.fade;
       ctx.fillRect(sc * CELL + 0.5, sr * CELL + 0.5, CELL - 1, CELL - 1);
     }
 
@@ -710,7 +734,7 @@ function initPond(hero) {
       if (isBlocked(col, row)) continue;
       const x = col * CELL, y = row * CELL;
       if (c.kind === "body") {
-        ctx.globalAlpha = 0.96 * c.fade;
+        ctx.globalAlpha = 0.97 * c.edge * c.fade;
         ctx.fillStyle = css(c.fill);
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
         if (c.glyph !== " ") {
