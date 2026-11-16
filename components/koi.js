@@ -51,14 +51,15 @@ function initPond(hero) {
   let obstacles = []; // text rects, hero-local coords
   let walls = []; // obstacles + out-of-bounds slabs (physics only)
   let blocked = new Uint8Array(0); // per-tile: 1 = touches text
-  let koi = [], pellets = [], ripples = [], waterDots = [];
+  let koi = [], pellets = [], ripples = [], bubbles = [], waterDots = [];
   let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
   let varietyCursor = Math.floor(Math.random() * VARIETIES.length);
 
   // size-dependent geometry
-  const bodyLen = () => 190 * S;
-  const maxR = () => 26 * S;
+  let KS = 1; // size of the koi currently being simulated/drawn (each koi differs)
+  const bodyLen = () => 190 * S * KS;
+  const maxR = () => 26 * S * KS;
   const seg = () => (bodyLen() * TOTAL) / N;
 
   // ---- helpers ------------------------------------------------------------
@@ -183,15 +184,22 @@ function initPond(hero) {
 
   function newKoi(at) {
     const v = VARIETIES[varietyCursor++ % VARIETIES.length];
+    const size = rand(0.82, 1.12);
+    KS = size;
     const k = {
       v, pat: makePattern(v),
       spine: [], target: { x: at.x - 40, y: at.y }, waypoint: null,
       heading: Math.PI, speed: 30 * S, beat: 0.4, glide: 0,
       phase: rand(0, 6), fade: reduceMotion ? 1 : 0, tempo: rand(0.85, 1.15),
       cramp: 0, progT: 0, progAt: { x: at.x, y: at.y }, leaving: false, eatCd: 0,
+      // individuality, so koi chasing the same thing don't move in lockstep
+      size, beatRate: rand(0.8, 1.2), turnR: rand(0.85, 1.25),
+      wobF: rand(1.4, 2.8), wobA: rand(0.08, 0.2), notice: 0, food: null,
     };
     for (let i = 0; i <= N; i++) k.spine.push({ x: at.x + i * seg(), y: at.y });
     for (let i = 0; i <= N; i++) pushOut(k.spine[i], envelope((i / N) * TOTAL));
+    k.size = size;
+    KS = 1;
     k.waypoint = pickWaypoint(k.target, k);
     return k;
   }
@@ -288,7 +296,7 @@ function initPond(hero) {
   function reconcile() {
     active = W >= MIN_WIDTH && !!pickWaypoint({ x: W * 0.75, y: H / 2 }, null, true);
     canvas.style.display = active ? "" : "none";
-    if (!active) { koi = []; pellets = []; ripples = []; return; }
+    if (!active) { koi = []; pellets = []; ripples = []; bubbles = []; return; }
     for (const k of koi) {
       const h = k.spine[0];
       if (clearance(h.x, h.y) < roomNeed() * 0.45) k.leaving = true;
@@ -356,6 +364,7 @@ function initPond(hero) {
 
   // ---- simulation ---------------------------------------------------------
   function updateKoi(k, dt) {
+    KS = k.size;
     k.fade = k.leaving ? Math.max(0, k.fade - dt / 0.6) : Math.min(1, k.fade + dt / 1.5);
     const head = k.spine[0];
     const t = k.target;
@@ -379,12 +388,24 @@ function initPond(hero) {
 
     // food beats wandering
     k.eatCd = Math.max(0, (k.eatCd || 0) - dt);
-    let food = null, foodD = 450 * S;
-    for (const p of pellets) {
-      if (!p.landed || !p.reach) continue;
-      const d = dist(p, head);
-      if (d < foodD) { food = p; foodD = d; }
+    let food = null;
+    const anyFood = pellets.some((p) => p.landed && p.reach && dist(p, head) < 450 * S);
+    if (!anyFood) k.notice = rand(0.2, 1.4); // each koi takes its own moment to notice
+    else k.notice = Math.max(0, k.notice - dt);
+    if (anyFood && k.notice === 0) {
+      // nearest pellet, but one another koi is already after counts as farther,
+      // so they fan out instead of all tracing the same line
+      let best = Infinity;
+      for (const p of pellets) {
+        if (!p.landed || !p.reach) continue;
+        const d = dist(p, head);
+        if (d > 450 * S) continue;
+        const taken = koi.some((o) => o !== k && o.food === p);
+        const score = d + (taken ? 140 * S : 0) + (p === k.food ? -25 * S : 0);
+        if (score < best) { best = score; food = p; }
+      }
     }
+    k.food = food;
     const goal = food || t;
     const goalD = dist(goal, head);
 
@@ -422,8 +443,8 @@ function initPond(hero) {
     let diff = Math.atan2(ay, ax) - k.heading;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     // fixed turning radius: turn rate scales with speed (slow koi turn slowly)
-    const maxTurn = clamp(k.speed / (38 * S), 0.7, 2.2) * dt;
-    k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * 2.1 + k.phase) * 0.12 * dt;
+    const maxTurn = clamp(k.speed / (38 * S * k.turnR), 0.6, 2.2) * dt;
+    k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * k.wobF + k.wobA * 40) * k.wobA * dt;
 
     // burst-and-glide: tail beats hard to speed up, then the koi coasts
     let vmax, demand;
@@ -446,7 +467,7 @@ function initPond(hero) {
     head.x += Math.cos(k.heading) * k.speed * dt;
     head.y += Math.sin(k.heading) * k.speed * dt;
     pushOut(head, envelope(0));
-    k.phase += dt * (1.8 + 3.2 * Math.min(1.6, k.speed / (55 * S)));
+    k.phase += dt * (1.8 + 3.2 * Math.min(1.6, k.speed / (55 * S))) * k.beatRate;
 
     // trapped? (e.g. the text reflowed around it and it's pinned in a gap)
     if (clearance(head.x, head.y) < envelope(0) + 12 * S) k.cramp += dt;
@@ -463,7 +484,16 @@ function initPond(hero) {
     if (food && k.eatCd === 0 && dist(food, head) < 9 * S + 5) {
       pellets.splice(pellets.indexOf(food), 1);
       ripples.push({ x: food.x, y: food.y, age: 0, life: 0.9, maxR: 22 * S });
+      const nb = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < nb; i++) {
+        bubbles.push({
+          x: food.x + rand(-5, 5) * S, y: food.y + rand(-5, 5) * S,
+          age: -i * rand(0.12, 0.22), life: rand(0.8, 1.1), size: rand(4.5, 7.5) * S,
+          vx: rand(-6, 6), vy: -rand(8, 18),
+        });
+      }
       k.eatCd = rand(0.7, 1.4);
+      k.food = null;
     }
     // the snout bumps floating feed aside
     const bump = 16 * S;
@@ -497,9 +527,15 @@ function initPond(hero) {
     time += dt;
     updatePellets(dt);
     updateWater(dt);
+    for (const b of bubbles) {
+      b.age += dt;
+      if (b.age > 0) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    }
+    bubbles = bubbles.filter((b) => b.age < b.life);
     for (const r of ripples) r.age += dt;
     ripples = ripples.filter((r) => r.age < r.life);
     for (const k of koi) updateKoi(k, dt);
+    KS = 1;
     // a trapped koi fades out and reappears somewhere open
     for (let i = 0; i < koi.length; i++) {
       const k = koi[i], h = k.spine[0];
@@ -561,6 +597,7 @@ function initPond(hero) {
 
   // Rasterise one koi into `cells` (Map key -> tile).
   function rasterKoi(k, cells, dark) {
+    KS = k.size;
     const R = maxR();
     const base = rgb((dark && k.v.dark?.base) || k.v.base);
     const patch = rgb(k.v.patch);
@@ -728,6 +765,7 @@ function initPond(hero) {
     if (!koi.length) { ctx.globalAlpha = 1; return; }
     const cells = new Map();
     for (const k of koi) rasterKoi(k, cells, dark);
+    KS = 1;
 
     // soft tile shadow, offset like light from the upper left
     ctx.fillStyle = dark ? "#000000" : "#94a3b8";
@@ -785,7 +823,41 @@ function initPond(hero) {
         ctx.fillText(c.glyph, x + CELL / 2, y + CELL / 2 + 0.5);
       }
     }
+    drawBubbles(dark);
     ctx.globalAlpha = 1;
+  }
+
+  // Eating bubbles: swell, wobble up, then pop into a little burst.
+  function drawBubbles(dark) {
+    const rim = dark ? "#e2e8f0" : "#64748b";
+    for (const b of bubbles) {
+      if (b.age < 0) continue;
+      if (isBlocked(Math.floor(b.x / CELL), Math.floor(b.y / CELL))) continue;
+      const p = b.age / b.life;
+      if (p < 0.75) {
+        const r = b.size * (0.35 + 0.65 * (p / 0.75)) + Math.sin(b.age * 18) * 0.3;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = dark ? "rgba(226,232,240,0.18)" : "rgba(255,255,255,0.75)";
+        ctx.fill();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = rim;
+        ctx.stroke();
+        ctx.fillStyle = "#ffffff"; // glint
+        ctx.fillRect(b.x - r * 0.45, b.y - r * 0.5, Math.max(1, r * 0.35), Math.max(1, r * 0.35));
+      } else {
+        // pop: specks fly out from where the bubble was
+        const q = (p - 0.75) / 0.25;
+        const rr = b.size * (1 + q * 0.9);
+        ctx.globalAlpha = 0.85 * (1 - q);
+        ctx.fillStyle = rim;
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + b.size;
+          ctx.fillRect(b.x + Math.cos(a) * rr - 0.75, b.y + Math.sin(a) * rr - 0.75, 1.5, 1.5);
+        }
+      }
+    }
   }
 
   // ---- loop & lifecycle ---------------------------------------------------
@@ -833,7 +905,7 @@ function initPond(hero) {
           }
         }
         draw();
-        return { minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length };
+        return { minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
       },
       feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
       heads: () => koi.map((k) => [k.spine[0].x | 0, k.spine[0].y | 0, k.v.name]),
