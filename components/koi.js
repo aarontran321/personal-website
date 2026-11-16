@@ -388,7 +388,7 @@ function initPond(hero) {
   const onScreen = (p, pad = 0) => p.x > -pad && p.x < W + pad && p.y > -pad && p.y < H + pad;
 
   function desiredCount() {
-    // the whole pond, on screen and off; up to ~45% are away at any moment
+    // the whole pond, on screen and off; up to a quarter are away at any moment
     if (W >= 2400) return 12;
     if (W >= 2000) return 11;
     if (W >= 1700) return 9;
@@ -435,7 +435,7 @@ function initPond(hero) {
     const want = desiredCount();
     while (koi.length > want) koi.pop();
     const firstFill = koi.length === 0;
-    const startOnScreen = Math.max(2, want - Math.floor(want * 0.45));
+    const startOnScreen = Math.max(2, want - Math.floor(want * 0.25));
     while (koi.length < want) {
       if (firstFill && koi.length < startOnScreen) {
         const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, null, true);
@@ -531,17 +531,17 @@ function initPond(hero) {
     const arrive = 90 * S;
     if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
       // Koi drift off past any edge and come back on their own schedule: one
-      // leaving doesn't pull another in. Up to ~45% are away at once, but at
+      // leaving doesn't pull another in. Up to a quarter are away at once, but at
       // least two always stay in view.
       const awayNow = koi.filter((o) => o.away).length;
-      const awayCap = Math.max(0, Math.min(Math.floor(koi.length * 0.45), koi.length - 2));
+      const awayCap = Math.max(0, Math.min(Math.floor(koi.length * 0.25), koi.length - 2));
       if (k.away && k.awayT > 0) {
         k.waypoint = offscreenPoint(k.edge); // linger out of sight a while
-      } else if (!k.away && Math.random() < 0.3 && awayNow < awayCap) {
+      } else if (!k.away && Math.random() < 0.12 && awayNow < awayCap) {
         const p = offscreenPoint();
         k.waypoint = p; k.edge = p.edge;
         k.away = true;
-        k.awayT = rand(4, 18);
+        k.awayT = rand(2, 7);
       } else {
         const ahead = {
           x: clamp(head.x + Math.cos(k.heading) * 250 * S, 60, W - 60),
@@ -560,13 +560,13 @@ function initPond(hero) {
     let food = null;
     k.fullT = Math.max(0, (k.fullT || 0) - dt);
     const anyFood = pellets.some((p) => p.landed && p.reach && dist(p, head) < 450 * S);
-    if (anyFood && !k.sawFood && Math.random() < 0.35) k.fullT = rand(6, 12); // not hungry this time
+    if (anyFood && !k.sawFood && Math.random() < 0.2) k.fullT = rand(5, 10); // not hungry this time
     k.sawFood = anyFood;
     if (!anyFood) k.notice = rand(0.2, 1.4); // each koi takes its own moment to notice
     else k.notice = Math.max(0, k.notice - dt);
     // only about half the pond crowds in at once; the rest keep cruising
     const feeders = koi.filter((o) => o !== k && o.food).length;
-    const seat = k.food || feeders < Math.max(1, Math.ceil(koi.length / 2));
+    const seat = k.food || feeders < Math.max(1, Math.ceil(koi.length * 0.6));
     if (anyFood && k.notice === 0 && k.fullT === 0 && seat) {
       // nearest pellet, but one another koi is already after counts as farther,
       // so they fan out instead of all tracing the same line
@@ -696,14 +696,14 @@ function initPond(hero) {
           vx: rand(-6, 6), vy: -rand(16, 28),
         });
       }
-      k.eatCd = rand(0.7, 1.4);
+      k.eatCd = rand(0.5, 1);
       // after a few bites it's had enough and swims off, making room for others
       k.bites = (k.bites || 0) + 1;
-      if (k.bites >= (k.appetite ||= Math.ceil(rand(1.5, 4)))) {
-        k.fullT = rand(8, 15);
+      if (k.bites >= (k.appetite ||= Math.ceil(rand(2.5, 6)))) {
+        k.fullT = rand(5, 10);
         k.dashT = rand(1.2, 2); // a quick burst away from the crowd
         k.bites = 0;
-        k.appetite = Math.ceil(rand(1.5, 4));
+        k.appetite = Math.ceil(rand(2.5, 6));
         k.waypoint = null; // head somewhere new
       }
       k.food = null;
