@@ -239,7 +239,7 @@ function initPond(hero) {
       { x0: -big, y0: -big, x1: big, y1: TOP_BOUND }, // top (header)
       { x0: -big, y0: H, x1: big, y1: big }, // bottom
       { x0: -big, y0: -big, x1: 0, y1: big }, // left
-      { x0: W - 12, y0: -big, x1: big, y1: big }, // right
+      { x0: W + 380 * S, y0: -big, x1: big, y1: big }, // right: the pond carries on off-screen
     ]);
     // tile mask: any tile within 4px of text is off-limits for drawing
     cols = Math.ceil(W / CELL);
@@ -258,11 +258,12 @@ function initPond(hero) {
     const need = roomNeed();
     for (let pass = 0; pass < 3; pass++) {
       for (let i = 0; i < 70; i++) {
-        const x = pass < 2 ? W * rand(0.45, 1) : rand(0, W);
+        const x = pass < 2 ? W * rand(0.35, 1) : rand(0, W);
         const y = rand(TOP_BOUND, H);
+        if (x > W - need * 0.8) continue; // on-screen spots stay fully visible
         if (clearance(x, y) < need) continue;
-        if (!anyDist && Math.hypot(x - from.x, y - from.y) < 140 * S) continue;
-        if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 160 * S)) continue;
+        if (!anyDist && Math.hypot(x - from.x, y - from.y) < 220 * S) continue; // longer swims
+        if (self && koi.some((o) => o !== self && Math.hypot(o.target.x - x, o.target.y - y) < 200 * S)) continue;
         if (pass === 0 && !anyDist && !lineOfSight(from, { x, y }, need * 0.7)) continue;
         return { x, y };
       }
@@ -271,11 +272,10 @@ function initPond(hero) {
   }
 
   function desiredCount() {
-    if (W >= 2400) return 8;
-    if (W >= 2000) return 7;
-    if (W >= 1700) return 6;
-    if (W >= 1400) return 5;
-    if (W >= 1200) return 4;
+    if (W >= 2400) return 7;
+    if (W >= 2000) return 6;
+    if (W >= 1700) return 5;
+    if (W >= 1400) return 4;
     if (W >= 1000) return 3;
     return 2;
   }
@@ -359,6 +359,11 @@ function initPond(hero) {
         p.x += Math.sin(time * 0.5 + p.seed) * 4 * dt;
         p.y += Math.cos(time * 0.4 + p.seed * 1.3) * 3 * dt;
         if (clearance(p.x, p.y) < 10) pushOut(p, 10);
+        // window shrank or text reflowed over it: fade away rather than sit clipped
+        if (!p.dying && (p.x > W - 6 || p.y > H - 6 || clearance(p.x, p.y, obstacles) < 6)) {
+          p.dying = true;
+          p.life = Math.min(p.life, p.age + 0.8);
+        }
         if (Math.random() < dt) p.reach = reachable(p.x, p.y);
       }
     }
@@ -378,7 +383,18 @@ function initPond(hero) {
       const p = pickWaypoint(head, k, true);
       if (p) { t.x = p.x; t.y = p.y; k.waypoint = null; }
     }
-    if (!k.waypoint || dist(k.waypoint, t) < 10) k.waypoint = pickWaypoint(t, k) || k.waypoint;
+    if (!k.waypoint || dist(k.waypoint, t) < 10) {
+      // now and then a koi wanders off past the right edge and comes back later,
+      // so the visible pond never gets crowded; at most a third are away at once
+      const awayNow = koi.filter((o) => o.away).length;
+      if (!k.away && Math.random() < 0.18 && awayNow < Math.max(1, Math.floor(koi.length / 3))) {
+        k.waypoint = { x: W + rand(140, 280) * S, y: rand(TOP_BOUND + 60 * S, H - 60 * S) };
+        k.away = true;
+      } else {
+        k.waypoint = pickWaypoint(t, k) || k.waypoint;
+        k.away = false;
+      }
+    }
     if (k.waypoint) {
       const dx = k.waypoint.x - t.x, dy = k.waypoint.y - t.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -588,7 +604,7 @@ function initPond(hero) {
   // Tilde water: evenly scattered `-` / `~` glyphs that drift on a current and
   // shimmer. Seeded on a jittered grid so they spread out instead of clumping.
   function seedWater() {
-    const gap = 40;
+    const gap = 36;
     waterDots = [];
     for (let y = gap / 2; y < H; y += gap) {
       for (let x = gap / 2; x < W; x += gap) {
@@ -610,12 +626,12 @@ function initPond(hero) {
   }
 
   function drawWater(dark) {
-    const color = dark ? "#94a3b8" : "#64748b";
+    const color = dark ? "#cbd5e1" : "#475569";
     for (const d of waterDots) {
       const col = Math.floor(d.x / CELL), row = Math.floor(d.y / CELL);
       if (isBlocked(col, row)) continue;
       const tw = 0.5 + 0.5 * Math.sin(time * d.tw + d.ph);
-      ctx.globalAlpha = 0.1 + 0.26 * tw;
+      ctx.globalAlpha = 0.16 + 0.34 * tw;
       stamp(tw > 0.7 ? "~" : "-", color, col, row);
     }
   }
@@ -671,6 +687,7 @@ function initPond(hero) {
     const pad = R * 2;
     const c0 = Math.max(0, Math.floor((minX - pad) / CELL)), c1 = Math.min(cols - 1, Math.ceil((maxX + pad) / CELL));
     const r0 = Math.max(0, Math.floor((minY - pad) / CELL)), r1 = Math.min(rows - 1, Math.ceil((maxY + pad) / CELL));
+    if (c0 > c1 || r0 > r1) return; // entirely off-screen
     const tail = q[N - Math.round(N * (TOTAL - 1) / TOTAL)];
 
     // nearest point on the spine for every tile near it: sweep each segment over
@@ -826,7 +843,7 @@ function initPond(hero) {
     for (const p of pellets) {
       const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
       if (isBlocked(col, row) || cells.get(row * 65536 + col)?.kind === "body") continue;
-      const fade = Math.min(1, (p.life - p.age) / 3);
+      const fade = Math.min(1, (p.life - p.age) / (p.dying ? 0.8 : 3));
       const fly = p.landed ? 1 : p.fly / p.flyDur;
       const lift = p.landed ? 0 : Math.sin(fly * Math.PI) * 10 * S; // arc while airborne
       const jx = Math.sin(time * 7 + p.seed) * 0.9 + Math.sin(time * 13 + p.seed * 2) * 0.4;
@@ -961,7 +978,7 @@ function initPond(hero) {
         k.spine.forEach((p, j) => { p.x = x; p.y = y + j * seg(); });
         k.heading = -Math.PI / 2;
       },
-      state: () => koi.map((k) => ({ fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
+      state: () => koi.map((k) => ({ away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
     };
   }
 }
