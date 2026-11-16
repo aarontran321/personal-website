@@ -564,13 +564,13 @@ function initPond(hero) {
     let food = null;
     k.fullT = Math.max(0, (k.fullT || 0) - dt);
     const anyFood = pellets.some((p) => p.landed && p.reach && dist(p, head) < 450 * S);
-    if (anyFood && !k.sawFood && Math.random() < 0.2) k.fullT = rand(5, 10); // not hungry this time
+    if (anyFood && !k.sawFood && Math.random() < 0.08) k.fullT = rand(4, 8); // not hungry this time
     k.sawFood = anyFood;
-    if (!anyFood) k.notice = rand(0.2, 1.4); // each koi takes its own moment to notice
+    if (!anyFood) k.notice = rand(0.15, 0.8); // each koi takes its own moment to notice
     else k.notice = Math.max(0, k.notice - dt);
-    // only about half the pond crowds in at once; the rest keep cruising
+    // most of the pond comes to eat; a few keep cruising
     const feeders = koi.filter((o) => o !== k && o.food).length;
-    const seat = k.food || feeders < Math.max(1, Math.ceil(koi.length * 0.6));
+    const seat = k.food || feeders < Math.max(1, Math.ceil(koi.length * 0.8));
     if (anyFood && k.notice === 0 && k.fullT === 0 && seat) {
       // nearest pellet, but one another koi is already after counts as farther,
       // so they fan out instead of all tracing the same line
@@ -583,7 +583,7 @@ function initPond(hero) {
         b = Math.abs(Math.atan2(Math.sin(b), Math.cos(b)));
         // only food it can reach with a gentle curve: roughly ahead, or far enough
         // away to swing round to. Anything else waits for the next pass.
-        if (b > (p === k.food ? 1.6 : 1) && d < 170 * S) continue; // a little stickier once chosen
+        if (b > (p === k.food ? 2.2 : 1.35) && d < 120 * S) continue; // a little stickier once chosen
         const taken = koi.some((o) => o !== k && o.food === p);
         const score = d + b * 90 * S + (taken ? 140 * S : 0) + (p === k.food ? -25 * S : 0);
         if (score < best) { best = score; food = p; }
@@ -599,7 +599,7 @@ function initPond(hero) {
     const goalD = dist(goal, head);
 
     // steering: toward the goal, away from text and other koi
-    const pull = food && k.eatCd > 0 ? 0.25 : 1; // just ate: drift on, don't pirouette
+    const pull = food && k.eatCd > 0 ? 0.6 : 1; // just ate: drift on, don't pirouette
     let ax = ((goal.x - head.x) / (goalD || 1)) * pull;
     let ay = ((goal.y - head.y) / (goalD || 1)) * pull;
     const fx = Math.cos(k.heading), fy = Math.sin(k.heading);
@@ -647,7 +647,8 @@ function initPond(hero) {
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     // fixed turning radius: turn rate scales with speed (slow koi turn slowly)
     // wide, graceful turns: the circle is a few body-widths across, never a spin
-    const maxTurn = clamp(k.speed / (70 * S * k.turnR * (food ? 1.15 : 1)), 0.35, 1.6) * dt;
+    const near = food ? clamp(goalD / (120 * S), 0.55, 1) : 1; // tighten up on the final approach
+    const maxTurn = clamp(k.speed / (70 * S * k.turnR * near), 0.35, 1.8) * dt;
     k.heading += clamp(diff, -maxTurn, maxTurn) + Math.sin(time * k.wobF + k.wobA * 40) * k.wobA * dt;
 
     // burst-and-glide: tail beats hard to speed up, then the koi coasts
@@ -655,8 +656,8 @@ function initPond(hero) {
     if (food) {
       // eager but unhurried: brake to turn toward food that's off to the side,
       // and coast for a moment after each gulp
-      vmax = clamp(goalD * 0.9, 20 * S, 100 * S);
-      demand = k.eatCd > 0 ? 0.12 : 0.75;
+      vmax = clamp(goalD * 0.7, 18 * S, 100 * S);
+      demand = k.eatCd > 0 ? 0.25 : 0.75;
       k.glide = 0;
     } else if (k.dashT > 0) {
       k.dashT -= dt;
@@ -688,9 +689,22 @@ function initPond(hero) {
       k.progAt = { x: head.x, y: head.y };
     }
 
-    // eat one pellet per gulp, then a pause before the next
-    if (food && k.eatCd === 0 && dist(food, head) < 9 * S + 5) {
+    // eat one pellet per gulp, then a pause before the next. A hungry koi takes
+    // any pellet at its mouth, not only the one it was aiming for.
+    if (k.eatCd === 0 && k.fullT === 0 && pellets.length) {
+      const mouth = 14 * S + 6;
+      let near = null, nd = mouth;
+      for (const p of pellets) {
+        if (!p.landed) continue;
+        const d = dist(p, head);
+        if (d < nd) { nd = d; near = p; }
+      }
+      if (near) food = near;
+      else if (food && dist(food, head) >= mouth) food = null;
+    } else food = null;
+    if (food) {
       pellets.splice(pellets.indexOf(food), 1);
+      eatenTotal++;
       ripples.push({ x: food.x, y: food.y, age: 0, life: 0.9, maxR: 22 * S });
       const nb = 2 + Math.floor(Math.random() * 2);
       for (let i = 0; i < nb; i++) {
@@ -715,7 +729,7 @@ function initPond(hero) {
     // the snout bumps floating feed aside
     const bump = 16 * S;
     for (const p of pellets) {
-      if (!p.landed) continue;
+      if (!p.landed || k.fullT === 0) continue; // hungry koi take it, not shove it
       const dx = p.x - head.x, dy = p.y - head.y;
       const d = Math.hypot(dx, dy);
       if (d < bump && d > 0.01) {
@@ -740,6 +754,7 @@ function initPond(hero) {
     }
   }
 
+  let eatenTotal = 0; // read by the dev test hook
   function update(dt) {
     time += dt;
     waterAge += dt;
@@ -1239,7 +1254,7 @@ function initPond(hero) {
           }
         }
         draw();
-        return { minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
+        return { eaten: eatenTotal, minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
       },
       feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
       heads: () => koi.map((k) => [k.spine[0].x | 0, k.spine[0].y | 0, k.v.name]),
