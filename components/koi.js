@@ -58,8 +58,8 @@ function initPond(hero) {
 
   // size-dependent geometry
   let KS = 1; // size of the koi currently being simulated/drawn (each koi differs)
-  const bodyLen = () => 190 * S * KS;
-  const maxR = () => 26 * S * KS;
+  const bodyLen = () => 215 * S * KS;
+  const maxR = () => 29 * S * KS;
   const seg = () => (bodyLen() * TOTAL) / N;
 
   // ---- helpers ------------------------------------------------------------
@@ -71,7 +71,6 @@ function initPond(hero) {
   const mixA = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
   const css = (a) => `rgb(${a[0] | 0},${a[1] | 0},${a[2] | 0})`;
   const lum = (a) => (0.299 * a[0] + 0.587 * a[1] + 0.114 * a[2]) / 255;
-  const INK = rgb("#0f172a"), PAPER = rgb("#ffffff");
 
   function rectDist(px, py, r) {
     const dx = Math.max(r.x0 - px, 0, px - r.x1);
@@ -272,20 +271,24 @@ function initPond(hero) {
   }
 
   function desiredCount() {
-    if (W >= 1700) return 4;
-    if (W >= 1300) return 3;
-    if (W >= 1000) return 2;
-    return 1;
+    if (W >= 2400) return 8;
+    if (W >= 2000) return 7;
+    if (W >= 1700) return 6;
+    if (W >= 1400) return 5;
+    if (W >= 1200) return 4;
+    if (W >= 1000) return 3;
+    return 2;
   }
 
   function resize() {
     W = hero.clientWidth;
     H = hero.clientHeight;
-    S = clamp(W / 1500, 0.6, 1);
+    S = clamp(W / 1500, 0.6, 1.35); // wide screens get proportionally bigger koi
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sprites.clear(); // device pixel ratio may have changed
     collectObstacles();
     seedWater();
     reconcile();
@@ -550,6 +553,28 @@ function initPond(hero) {
   // ---- rendering ----------------------------------------------------------
   const isDark = () => document.body.classList.contains("dark-mode");
 
+  // Glyphs are pre-rendered once per (character, colour) and stamped with
+  // drawImage, which is far cheaper than thousands of fillText calls a frame.
+  const sprites = new Map();
+  function glyph(ch, color) {
+    const id = ch + color;
+    let c = sprites.get(id);
+    if (!c) {
+      c = document.createElement("canvas");
+      c.width = c.height = Math.ceil(CELL * dpr);
+      const g = c.getContext("2d");
+      g.scale(dpr, dpr);
+      g.font = `${GLYPH_PX}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillStyle = color;
+      g.fillText(ch, CELL / 2, CELL / 2 + 0.5);
+      sprites.set(id, c);
+    }
+    return c;
+  }
+  const stamp = (ch, color, col, row) => ctx.drawImage(glyph(ch, color), col * CELL, row * CELL, CELL, CELL);
+
   // fin-ray glyph for a direction
   function rayGlyph(ux, uy) {
     let a = Math.atan2(uy, ux);
@@ -585,13 +610,13 @@ function initPond(hero) {
   }
 
   function drawWater(dark) {
-    ctx.fillStyle = dark ? "#94a3b8" : "#64748b";
+    const color = dark ? "#94a3b8" : "#64748b";
     for (const d of waterDots) {
       const col = Math.floor(d.x / CELL), row = Math.floor(d.y / CELL);
       if (isBlocked(col, row)) continue;
       const tw = 0.5 + 0.5 * Math.sin(time * d.tw + d.ph);
       ctx.globalAlpha = 0.1 + 0.26 * tw;
-      ctx.fillText(tw > 0.7 ? "~" : "-", (col + 0.5) * CELL, (row + 0.5) * CELL);
+      stamp(tw > 0.7 ? "~" : "-", color, col, row);
     }
   }
 
@@ -634,7 +659,7 @@ function initPond(hero) {
     {
       const p = q[Math.round((0.06 / TOTAL) * N)], r = bodyR(0.06) * 0.62;
       for (const side of [-1, 1]) {
-        eyeCells.add(`${Math.floor((p.x + p.nx * side * r) / CELL)},${Math.floor((p.y + p.ny * side * r) / CELL)}`);
+        eyeCells.add(Math.floor((p.y + p.ny * side * r) / CELL) * 65536 + Math.floor((p.x + p.nx * side * r) / CELL));
       }
     }
 
@@ -648,27 +673,45 @@ function initPond(hero) {
     const r0 = Math.max(0, Math.floor((minY - pad) / CELL)), r1 = Math.min(rows - 1, Math.ceil((maxY + pad) / CELL));
     const tail = q[N - Math.round(N * (TOTAL - 1) / TOTAL)];
 
-    for (let row = r0; row <= r1; row++) {
-      for (let col = c0; col <= c1; col++) {
-        const key = `${col},${row}`;
-        const prev = cells.get(key);
-        if (prev && prev.kind === "body") continue;
-        const px = (col + 0.5) * CELL, py = (row + 0.5) * CELL;
-
-        let best = Infinity, bs = 0, blat = 0;
-        for (let j = 0; j < N; j++) {
-          const A = q[j], B = q[j + 1];
-          const vx = B.x - A.x, vy = B.y - A.y;
-          const len2 = vx * vx + vy * vy || 1;
+    // nearest point on the spine for every tile near it: sweep each segment over
+    // only the tiles within reach of it (much cheaper than every tile x every segment)
+    const gw = c1 - c0 + 1, gh = r1 - r0 + 1;
+    const nD = new Float32Array(gw * gh).fill(Infinity);
+    const nS = new Float32Array(gw * gh), nL = new Float32Array(gw * gh);
+    const reach = R * 1.25 + CELL;
+    for (let j = 0; j < N; j++) {
+      const A = q[j], B = q[j + 1];
+      const vx = B.x - A.x, vy = B.y - A.y;
+      const len2 = vx * vx + vy * vy || 1;
+      const sc0 = Math.max(c0, Math.floor((Math.min(A.x, B.x) - reach) / CELL));
+      const sc1 = Math.min(c1, Math.floor((Math.max(A.x, B.x) + reach) / CELL));
+      const sr0 = Math.max(r0, Math.floor((Math.min(A.y, B.y) - reach) / CELL));
+      const sr1 = Math.min(r1, Math.floor((Math.max(A.y, B.y) + reach) / CELL));
+      for (let row = sr0; row <= sr1; row++) {
+        const py = (row + 0.5) * CELL;
+        for (let col = sc0; col <= sc1; col++) {
+          const px = (col + 0.5) * CELL;
           const tt = clamp(((px - A.x) * vx + (py - A.y) * vy) / len2, 0, 1);
           const cx = A.x + vx * tt, cy = A.y + vy * tt;
           const d = Math.hypot(px - cx, py - cy);
-          if (d < best) {
-            best = d;
-            bs = A.s + (B.s - A.s) * tt;
-            blat = ((px - cx) * -vy + (py - cy) * vx) < 0 ? d : -d;
+          const idx = (row - r0) * gw + (col - c0);
+          if (d < nD[idx]) {
+            nD[idx] = d;
+            nS[idx] = A.s + (B.s - A.s) * tt;
+            nL[idx] = ((px - cx) * -vy + (py - cy) * vx) < 0 ? d : -d;
           }
         }
+      }
+    }
+
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const key = row * 65536 + col;
+        const prev = cells.get(key);
+        if (prev && prev.kind === "body") continue;
+        const px = (col + 0.5) * CELL, py = (row + 0.5) * CELL;
+        const idx = (row - r0) * gw + (col - c0);
+        const best = nD[idx], bs = nS[idx], blat = nL[idx];
 
         let cell = null;
         if (bs <= 1) {
@@ -696,11 +739,11 @@ function initPond(hero) {
             c = mixA(c, [60, 52, 48], (1 - depth) ** 2 * (lum(c) > 0.7 ? 0.3 : 0.4));
             if (depth > 0.7) c = mixA(c, [255, 255, 255], (depth - 0.7) * 0.4);
             cell = eyeCells.has(key)
-              ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: [240, 240, 240], ga: 1, edge: 1 }
+              ? { kind: "body", fill: [24, 22, 22], glyph: "o", gcol: "#f0f0f0", ga: 1, edge: 1 }
               : {
                 kind: "body", fill: c,
                 glyph: ridge ? "=" : BODY_GLYPHS[Math.min(BODY_GLYPHS.length - 1, Math.floor(depth * BODY_GLYPHS.length))],
-                gcol: lum(c) > 0.5 ? mixA(c, INK, 0.45) : mixA(c, PAPER, 0.4), ga: 0.4,
+                gcol: lum(c) > 0.5 ? "#0f172a" : "#ffffff", ga: lum(c) > 0.5 ? 0.2 : 0.18,
                 edge: 0.55 + 0.45 * Math.min(1, depth / 0.18), // soften the silhouette
               };
           }
@@ -745,7 +788,7 @@ function initPond(hero) {
     drawWater(dark);
 
     // ripple rings
-    ctx.fillStyle = dark ? "#cbd5e1" : "#475569";
+    const rippleColor = dark ? "#cbd5e1" : "#475569";
     for (const r of ripples) {
       const p = r.age / r.life;
       const rad = r.maxR * (1 - (1 - p) ** 2);
@@ -758,7 +801,7 @@ function initPond(hero) {
         if (seen.has(key) || isBlocked(col, row)) continue;
         seen.add(key);
         ctx.globalAlpha = 0.45 * (1 - p);
-        ctx.fillText("~", (col + 0.5) * CELL, (row + 0.5) * CELL);
+        stamp("~", rippleColor, col, row);
       }
     }
 
@@ -771,9 +814,9 @@ function initPond(hero) {
     ctx.fillStyle = dark ? "#000000" : "#94a3b8";
     for (const [key, c] of cells) {
       if (c.kind !== "body") continue;
-      const [col, row] = key.split(",").map(Number);
+      const col = key & 0xffff, row = key >>> 16;
       const sc = col + 1, sr = row + 2;
-      if (cells.has(`${sc},${sr}`) || isBlocked(sc, sr)) continue;
+      if (cells.has(sr * 65536 + sc) || isBlocked(sc, sr)) continue;
       ctx.globalAlpha = (dark ? 0.28 : 0.14) * c.fade;
       ctx.fillRect(sc * CELL + 0.5, sr * CELL + 0.5, CELL - 1, CELL - 1);
     }
@@ -782,7 +825,7 @@ function initPond(hero) {
     const ps = Math.max(4, Math.round(5 * S + 1));
     for (const p of pellets) {
       const col = Math.floor(p.x / CELL), row = Math.floor(p.y / CELL);
-      if (isBlocked(col, row) || cells.get(`${col},${row}`)?.kind === "body") continue;
+      if (isBlocked(col, row) || cells.get(row * 65536 + col)?.kind === "body") continue;
       const fade = Math.min(1, (p.life - p.age) / 3);
       const fly = p.landed ? 1 : p.fly / p.flyDur;
       const lift = p.landed ? 0 : Math.sin(fly * Math.PI) * 10 * S; // arc while airborne
@@ -801,7 +844,7 @@ function initPond(hero) {
 
     // koi tiles
     for (const [key, c] of cells) {
-      const [col, row] = key.split(",").map(Number);
+      const col = key & 0xffff, row = key >>> 16;
       if (isBlocked(col, row)) continue;
       const x = col * CELL, y = row * CELL;
       if (c.kind === "body") {
@@ -810,17 +853,15 @@ function initPond(hero) {
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
         if (c.glyph !== " ") {
           ctx.globalAlpha = c.ga * c.fade;
-          ctx.fillStyle = css(c.gcol);
-          ctx.fillText(c.glyph, x + CELL / 2, y + CELL / 2 + 0.5);
+          stamp(c.glyph, c.gcol, col, row);
         }
       } else {
         // fins: translucent tiles with ray glyphs
         ctx.globalAlpha = c.fa * c.fade;
         ctx.fillStyle = css(c.fill);
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-        ctx.globalAlpha = 0.55 * c.fade;
-        ctx.fillStyle = css(lum(c.fill) > 0.5 ? mixA(c.fill, INK, 0.5) : mixA(c.fill, PAPER, 0.5));
-        ctx.fillText(c.glyph, x + CELL / 2, y + CELL / 2 + 0.5);
+        ctx.globalAlpha = 0.3 * c.fade;
+        stamp(c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", col, row);
       }
     }
     drawBubbles(dark);
