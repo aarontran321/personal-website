@@ -251,7 +251,7 @@ function initPond(hero) {
       cramp: 0, progT: 0, progAt: { x: at.x, y: at.y }, leaving: false, eatCd: 0,
       // individuality, so koi chasing the same thing don't move in lockstep
       size, beatRate: rand(0.8, 1.2), turnR: rand(0.85, 1.25),
-      wobF: rand(1.4, 2.8), wobA: rand(0.08, 0.2), notice: 0, food: null,
+      wobF: rand(1.4, 2.8), wobA: rand(0.08, 0.2), notice: 0, food: null, z: Math.random(),
     };
     for (let i = 0; i <= N; i++) k.spine.push({ x: at.x + i * seg(), y: at.y });
     for (let i = 0; i <= N; i++) pushOut(k.spine[i], envelope((i / N) * TOTAL));
@@ -895,6 +895,25 @@ function initPond(hero) {
     return tab;
   }
 
+  // One koi's tile laid over another's (koi are drawn bottom to top). Opaque
+  // body covers what's under it; translucent fins and soft edges let the koi
+  // below show through, so overlaps read as one fish above another.
+  const alphaOf = (c) => (c.kind === "body" ? c.edge : c.fa) * c.fade;
+  function layer(under, top) {
+    const a = alphaOf(top);
+    if (a >= 0.999) return top;
+    const ua = alphaOf(under);
+    const out = a + ua * (1 - a);
+    const w = out > 0 ? a / out : 1;
+    const fill = mixA(under.fill, top.fill, w);
+    if (top.kind === "body") return { ...top, fill, edge: out, fade: 1 };
+    if (under.kind === "body") {
+      // a fin over another koi's body: tint the body, show the fin's rays
+      return { ...under, fill, edge: out, fade: 1, glyph: top.glyph, gcol: lum(fill) > 0.5 ? "#0f172a" : "#ffffff", ga: 0.32 };
+    }
+    return { ...top, fill, fa: out, fade: 1 };
+  }
+
   // Rasterise one koi into `cells` (Map key -> tile).
   function rasterKoi(k, cells, dark) {
     KS = k.size;
@@ -950,11 +969,15 @@ function initPond(hero) {
     const ti0 = (PAT_S - 1) * PAT_T + (PAT_T >> 1); // body colour where the tail joins
     const tailCol = [tab[ti0 * 5], tab[ti0 * 5 + 1], tab[ti0 * 5 + 2]];
 
-    // nearest point on the spine for every tile near it: sweep each segment over
-    // only the tiles within reach of it (much cheaper than every tile x every segment)
+    // For every tile near the spine: how deep inside the body it is (the deepest
+    // over all body segments, so a tail swinging past a bent body can't cut a
+    // notch out of it), and separately the nearest point on the tail. Each
+    // segment only sweeps the tiles within reach of it.
     const gw = c1 - c0 + 1, gh = r1 - r0 + 1;
-    const nD = new Float32Array(gw * gh).fill(Infinity);
+    const nD = new Float32Array(gw * gh).fill(Infinity); // tail: nearest distance
     const nS = new Float32Array(gw * gh), nL = new Float32Array(gw * gh);
+    const bD = new Float32Array(gw * gh); // body: depth 0..1 (0 = outside)
+    const bS = new Float32Array(gw * gh), bL = new Float32Array(gw * gh);
     const reach = R * 1.25 + CELL;
     for (let j = 0; j < N; j++) {
       const A = q[j], B = q[j + 1];
@@ -972,10 +995,13 @@ function initPond(hero) {
           const cx = A.x + vx * tt, cy = A.y + vy * tt;
           const d = Math.hypot(px - cx, py - cy);
           const idx = (row - r0) * gw + (col - c0);
-          if (d < nD[idx]) {
-            nD[idx] = d;
-            nS[idx] = A.s + (B.s - A.s) * tt;
-            nL[idx] = ((px - cx) * -vy + (py - cy) * vx) < 0 ? d : -d;
+          const sp = A.s + (B.s - A.s) * tt;
+          const lat = ((px - cx) * -vy + (py - cy) * vx) < 0 ? d : -d;
+          if (sp <= 1) {
+            const depth = 1 - d / bodyR(sp);
+            if (depth > bD[idx]) { bD[idx] = depth; bS[idx] = sp; bL[idx] = lat; }
+          } else if (d < nD[idx]) {
+            nD[idx] = d; nS[idx] = sp; nL[idx] = lat;
           }
         }
       }
@@ -985,10 +1011,11 @@ function initPond(hero) {
       for (let col = c0; col <= c1; col++) {
         const key = row * 65536 + col;
         const prev = cells.get(key);
-        if (prev && prev.kind === "body") continue;
         const px = (col + 0.5) * CELL, py = (row + 0.5) * CELL;
         const idx = (row - r0) * gw + (col - c0);
-        const best = nD[idx], bs = nS[idx], blat = nL[idx];
+        const inBody = bD[idx] > 0;
+        const bs = inBody ? bS[idx] : nS[idx], blat = inBody ? bL[idx] : nL[idx];
+        const best = inBody ? (1 - bD[idx]) * bodyR(bs) : nD[idx];
 
         let cell = null;
         if (bs <= 1) {
@@ -1061,9 +1088,9 @@ function initPond(hero) {
             }
           }
         }
-        if (cell && (!prev || cell.kind === "body")) {
+        if (cell) {
           cell.fade = k.fade;
-          cells.set(key, cell);
+          cells.set(key, prev ? layer(prev, cell) : cell);
         }
       }
     }
@@ -1099,7 +1126,8 @@ function initPond(hero) {
 
     if (!koi.length) { ctx.globalAlpha = 1; return; }
     const cells = new Map();
-    for (const k of koi) rasterKoi(k, cells, dark);
+    // bottom to top; each koi keeps its own depth so overlaps are consistent
+    for (const k of [...koi].sort((a, b) => a.z - b.z)) rasterKoi(k, cells, dark);
     KS = 1;
 
     const deepTint = dark ? [40, 52, 70] : [150, 172, 196]; // murky blue-grey
