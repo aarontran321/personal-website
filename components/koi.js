@@ -1374,6 +1374,10 @@ function initPond(hero) {
         ripple: (x, y, maxR, life = 0.9, a = 0.45) => ripples.push({ x, y, age: 0, life, maxR, a }),
         isBlocked, stamp, glyph, rand, clamp,
         clearance: (x, y) => clearance(x, y, obstacles), // distance to the nearest text
+        // the box around all the text (null if there's none)
+        textBox: () => obstacles.length ? obstacles.reduce((b, r) => ({
+          x0: Math.min(b.x0, r.x0), y0: Math.min(b.y0, r.y0), x1: Math.max(b.x1, r.x1), y1: Math.max(b.y1, r.y1),
+        }), { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }) : null,
       };
       const x = make(api);
       extras.push(x);

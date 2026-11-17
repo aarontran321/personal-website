@@ -122,27 +122,58 @@ export function lilyPads(api, count = 0) {
   const pads = [];
   const self = { on: true, update, drawOver };
   let lastW = 0, lastH = 0, checkT = 0;
-  // phones: none. The text covers nearly all the water there, so a pad could only
-  // squeeze into a gap between lines (and the title types out into some of those).
-  const want = () => count || (api.W >= 1700 ? 4 : api.W >= 1100 ? 3 : api.W >= 820 ? 2 : api.W >= 600 ? 1 : 0);
+  // Where the pads go, in order: two along the right, one up in the top-left
+  // corner above the title, a couple along the bottom below the text. Fewer on
+  // narrower screens. Phones get none: the text covers nearly all the water
+  // there, so a pad could only squeeze into a gap between lines.
+  const layout = () => {
+    const W = api.W;
+    if (count) return Array(count).fill("any");
+    if (W >= 1700) return ["right", "right", "topLeft", "bottom", "bottom"];
+    if (W >= 1100) return ["right", "right", "topLeft", "bottom"];
+    if (W >= 820) return ["right", "topLeft", "bottom"];
+    if (W >= 600) return ["right", "bottom"];
+    return [];
+  };
 
-  // A spot in open water along the right-hand side of the pond: clear of the
-  // text (with a margin), the faded top and bottom edges, and loosely grouped
-  // with the other pads rather than spread across the screen.
-  function findSpot(skip) {
+  // x and y ranges for each zone, for a pad of radius r
+  function zone(name, r) {
+    const S = api.S, W = api.W, H = api.H, top = api.topBound;
+    const m = r + 18 * S;
+    const yMid = [top + r + 60 * S, H - r - 60 * S];
+    switch (name) {
+      case "right": return [[W * 0.58, W * 0.9], yMid];
+      case "topLeft": {
+        // in the gap between the header and the top of the text, not beside it
+        const t = api.textBox();
+        const x0 = t ? Math.max(m, t.x0) : m;
+        const yMax = t ? Math.min(H * 0.38, t.y0 - r - 10 * S) : H * 0.38;
+        return [[x0, W * 0.5], [70 + r, yMax]];
+      }
+      case "bottom": return [[W * 0.25, W * 0.88], [H * 0.72, H - r - 30 * S]];
+      default: return [[m, W - m], yMid];
+    }
+  }
+
+  // A spot in open water in the given zone: clear of the text (with a margin),
+  // the screen edges and the other pads. Falls back to anywhere open.
+  function findSpot(name, skip) {
     const S = api.S, W = api.W;
-    const x0 = W * (W >= 1100 ? 0.72 : 0.6); // the right-hand strip
-    for (let tries = 0; tries < 600; tries++) {
-      const r = api.rand(22, 38) * S;
-      const m = r + 18 * S;
-      const lo = Math.max(x0, m);
-      if (lo > W - m) return null;
-      // lean further right: most land in the outer part of the strip
-      const x = lo + (W - m - lo) * (1 - Math.random() ** 1.8);
-      const y = api.rand(api.topBound + r + 60 * S, api.H - r - 60 * S);
-      if (api.clearance(x, y) < r + 40 * S) continue; // well clear, so it never crowds the text
-      if (pads.some((p) => p !== skip && Math.hypot(p.x - x, p.y - y) < p.r + r + 34 * S)) continue;
-      return { x, y, r };
+    for (const z of [name, "any"]) {
+      for (let tries = 0; tries < 400; tries++) {
+        // the top-left gap above the title is tight: a smaller pad, allowed a
+        // little nearer the text
+        const tight = z === "topLeft";
+        const r = (tight ? api.rand(18, 27) : api.rand(22, 38)) * S;
+        const m = r + 18 * S;
+        let [[x0, x1], [y0, y1]] = zone(z, r);
+        x0 = Math.max(x0, m); x1 = Math.min(x1, W - m);
+        if (x0 > x1 || y0 > y1) break;
+        const x = api.rand(x0, x1), y = api.rand(y0, y1);
+        if (api.clearance(x, y) < r + (tight ? 18 : 40) * S) continue; // well clear, so it never crowds the text
+        if (pads.some((p) => p !== skip && Math.hypot(p.x - x, p.y - y) < p.r + r + 40 * S)) continue;
+        return { x, y, r, zone: name };
+      }
     }
     return null;
   }
@@ -157,11 +188,10 @@ export function lilyPads(api, count = 0) {
 
   function place() {
     pads.length = 0;
-    const n = want();
-    for (let i = 0; i < n; i++) {
-      const spot = findSpot();
+    layout().forEach((z, i) => {
+      const spot = findSpot(z);
       if (spot) pads.push(newPad(spot, i));
-    }
+    });
     lastW = api.W; lastH = api.H;
   }
 
@@ -175,7 +205,7 @@ export function lilyPads(api, count = 0) {
       for (let i = 0; i < pads.length; i++) {
         const p = pads[i];
         if (api.clearance(p.x, p.y) < p.r + 8 * api.S) {
-          const spot = findSpot(p);
+          const spot = findSpot(p.zone, p);
           if (spot) pads[i] = newPad(spot, i);
           else { pads.splice(i, 1); i--; }
         }
