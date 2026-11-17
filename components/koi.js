@@ -1373,6 +1373,7 @@ function initPond(hero) {
         koi: () => koi.map((k) => ({ x: k.spine[0].x, y: k.spine[0].y, heading: k.heading, speed: k.speed, fade: k.fade })),
         ripple: (x, y, maxR, life = 0.9, a = 0.45) => ripples.push({ x, y, age: 0, life, maxR, a }),
         isBlocked, stamp, glyph, rand, clamp,
+        clearance: (x, y) => clearance(x, y, obstacles), // distance to the nearest text
       };
       const x = make(api);
       extras.push(x);

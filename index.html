@@ -260,6 +260,11 @@
   <script src="script.js"></script>
   <script type="module" src="/components/analytics.js"></script>
   <script type="module" src="/components/koi.js"></script>
+  <script type="module">
+    // trying out: lily pads on the pond
+    import { lilyPads } from "/components/pond-extras.js";
+    document.querySelector(".hero")?.koiPond?.use(lilyPads);
+  </script>
   <script type="module" src="/components/footer-main.jsx"></script>
 </body>
 </html>
