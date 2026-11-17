@@ -122,67 +122,53 @@ export function lilyPads(api, count = 0) {
   const pads = [];
   const self = { on: true, update, drawOver };
   let lastW = 0, lastH = 0, checkT = 0;
-  // Where the pads go, in order: two along the right, one up in the top-left
-  // corner above the title, a couple along the bottom below the text. Fewer on
-  // narrower screens. Phones get none: the text covers nearly all the water
-  // there, so a pad could only squeeze into a gap between lines.
+  // A set layout rather than random scatter: four pads in an evenly spaced,
+  // loose diagonal down the right-hand side of the pond (fractions of the pond's
+  // width and height), the second and fourth with a lotus. Narrower screens use
+  // fewer of them; phones get none, since the text covers nearly all the water.
+  const SPOTS = {
+    a: [0.915, 0.24], // top right
+    b: [0.77, 0.44], // middle
+    c: [0.645, 0.75], // lower left of the group
+    d: [0.87, 0.87], // bottom right
+  };
   const layout = () => {
     const W = api.W;
-    if (count) return Array(count).fill("any");
-    if (W >= 1700) return ["right", "right", "topLeft", "bottom", "bottom"];
-    if (W >= 1100) return ["right", "right", "topLeft", "bottom"];
-    if (W >= 820) return ["right", "topLeft", "bottom"];
-    if (W >= 600) return ["right", "bottom"];
+    if (W >= 1100) return ["a", "b", "c", "d"];
+    if (W >= 820) return ["a", "b", "d"];
+    if (W >= 600) return ["b", "d"];
     return [];
   };
 
-  // x and y ranges for each zone, for a pad of radius r
-  function zone(name, r) {
-    const S = api.S, W = api.W, H = api.H, top = api.topBound;
-    const m = r + 18 * S;
-    const yMid = [top + r + 60 * S, H - r - 60 * S];
-    switch (name) {
-      case "right": return [[W * 0.58, W * 0.9], yMid];
-      case "topLeft": {
-        // in the gap between the header and the top of the text, not beside it
-        const t = api.textBox();
-        const x0 = t ? Math.max(m, t.x0) : m;
-        const yMax = t ? Math.min(H * 0.38, t.y0 - r - 10 * S) : H * 0.38;
-        return [[x0, W * 0.5], [70 + r, yMax]];
-      }
-      case "bottom": return [[W * 0.25, W * 0.88], [H * 0.72, H - r - 30 * S]];
-      default: return [[m, W - m], yMid];
-    }
-  }
-
-  // A spot in open water in the given zone: clear of the text (with a margin),
-  // the screen edges and the other pads. Falls back to anywhere open.
+  // Each pad goes at its spot, or if text is in the way, the nearest clear
+  // point around it: well away from the text and the other pads.
   function findSpot(name, skip) {
-    const S = api.S, W = api.W;
-    for (const z of [name, "any"]) {
-      for (let tries = 0; tries < 400; tries++) {
-        // the top-left gap above the title is tight: a smaller pad, allowed a
-        // little nearer the text
-        const tight = z === "topLeft";
-        const r = (tight ? api.rand(18, 27) : api.rand(22, 38)) * S;
-        const m = r + 18 * S;
-        let [[x0, x1], [y0, y1]] = zone(z, r);
-        x0 = Math.max(x0, m); x1 = Math.min(x1, W - m);
-        if (x0 > x1 || y0 > y1) break;
-        const x = api.rand(x0, x1), y = api.rand(y0, y1);
-        if (api.clearance(x, y) < r + (tight ? 18 : 40) * S) continue; // well clear, so it never crowds the text
-        if (pads.some((p) => p !== skip && Math.hypot(p.x - x, p.y - y) < p.r + r + 40 * S)) continue;
-        return { x, y, r, zone: name };
+    const S = api.S, W = api.W, H = api.H;
+    const [fx, fy] = SPOTS[name];
+    const r = api.rand(27, 33) * S;
+    const m = r + 18 * S;
+    const ax = fx * W, ay = fy * H;
+    const ok = (x, y) =>
+      x > m && x < W - m && y > api.topBound + r + 40 * S && y < H - r - 30 * S &&
+      api.clearance(x, y) >= r + 36 * S &&
+      !pads.some((p) => p !== skip && Math.hypot(p.x - x, p.y - y) < p.r + r + 50 * S);
+    if (ok(ax, ay)) return { x: ax, y: ay, r, zone: name };
+    for (let ring = 1; ring <= 12; ring++) {
+      const d = ring * 14 * S;
+      for (let k = 0; k < 16; k++) {
+        const t = (k / 16) * TAU;
+        const x = ax + Math.cos(t) * d, y = ay + Math.sin(t) * d;
+        if (ok(x, y)) return { x, y, r, zone: name };
       }
     }
-    return null;
+    return null; // no room near this spot on this screen: leave it out
   }
 
   function newPad(spot, i) {
     return {
       ...spot, a: api.rand(0, TAU), spin: api.rand(-0.04, 0.04),
       notch: api.rand(0.35, 0.55), seed: api.rand(0, 100),
-      flower: i % 2 === 1, hue: Math.random(), f: 0, home: { x: spot.x, y: spot.y },
+      flower: spot.zone === "b" || spot.zone === "d", hue: Math.random(), f: 0, home: { x: spot.x, y: spot.y },
     };
   }
 
