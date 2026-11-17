@@ -27,6 +27,18 @@ const VARIETIES = [
 ];
 
 function initPond(hero) {
+  // Options. The homepage uses the defaults; the local demo page (koi-demo.html)
+  // passes some in via data-koi and flips the rest live with hero.koiPond.set().
+  const opt = {
+    header: true, // leave room for the fixed site header at the top
+    vivid: false, // richer, more saturated koi colours
+    cell: 0, // tile size override in px (0 = automatic)
+    ascii: true, // characters on the koi
+    water: true, // tilde water
+    count: 0, // number of koi override (0 = automatic)
+    speed: 1, // simulation speed
+    ...JSON.parse(hero.dataset.koi || "{}"),
+  };
   // ---- tunables -----------------------------------------------------------
   // square tile size, px. Set in resize(): smaller windows get smaller tiles so a
   // koi keeps the same number of tiles (the same detail) even as it shrinks.
@@ -35,7 +47,7 @@ function initPond(hero) {
   const TOTAL = 1.42; // spine length incl. tail fin, in body lengths
   const N = 28; // spine segments
   const CLEAR = 14; // minimum gap kept between a koi and any text
-  const TOP_BOUND = 90; // stay below the fixed site header
+  let TOP_BOUND = opt.header ? 90 : 12; // stay below the fixed site header
   const BODY_GLYPHS = " .:-=+";
   const MAX_PELLETS = 160;
 
@@ -239,25 +251,38 @@ function initPond(hero) {
     return false;
   }
 
-  function newKoi(at) {
+  // `heading` is the way the koi faces at birth; its body trails out behind
+  // that with a slight random curl, so a fresh pond isn't a row of identical
+  // straight fish all pointing the same way.
+  function newKoi(at, heading = rand(-Math.PI, Math.PI)) {
     const v = VARIETIES[varietyCursor++ % VARIETIES.length];
     const size = rand(0.82, 1.12);
     KS = size;
     const k = {
       v, pat: makePattern(v),
-      spine: [], target: { x: at.x - 40, y: at.y }, waypoint: null,
-      heading: Math.PI, speed: 30 * S, beat: 0.4, glide: 0,
+      spine: [], target: { x: at.x + Math.cos(heading) * 40, y: at.y + Math.sin(heading) * 40 }, waypoint: null,
+      heading, speed: rand(22, 40) * S, beat: rand(0.2, 0.7), glide: Math.random() < 0.3 ? rand(0.5, 1.5) : 0,
       phase: rand(0, 6), fade: reduceMotion ? 1 : 0, tempo: rand(0.85, 1.15),
       cramp: 0, progT: 0, progAt: { x: at.x, y: at.y }, leaving: false, eatCd: 0,
       // individuality, so koi chasing the same thing don't move in lockstep
       size, beatRate: rand(0.8, 1.2), turnR: rand(0.85, 1.25),
       wobF: rand(1.4, 2.8), wobA: rand(0.08, 0.2), notice: 0, food: null, z: Math.random(),
     };
-    for (let i = 0; i <= N; i++) k.spine.push({ x: at.x + i * seg(), y: at.y });
+    const curl = rand(-0.6, 0.6);
+    let px = at.x, py = at.y;
+    for (let i = 0; i <= N; i++) {
+      if (i > 0) {
+        const back = heading + Math.PI + curl * (i / N);
+        px += Math.cos(back) * seg();
+        py += Math.sin(back) * seg();
+      }
+      k.spine.push({ x: px, y: py });
+    }
     for (let i = 0; i <= N; i++) pushOut(k.spine[i], envelope((i / N) * TOTAL));
     k.size = size;
     KS = 1;
-    k.waypoint = pickWaypoint(k.target, k);
+    // first destination lies roughly ahead, so it sets off the way it faces
+    k.waypoint = pickWaypoint(at, k, true, heading) || pickWaypoint(k.target, k);
     return k;
   }
 
@@ -304,7 +329,7 @@ function initPond(hero) {
     }
     // top and bottom of the pond aren't hard borders: koi fade out there
     edgeRow = new Float32Array(rows);
-    const BAND = 110, top0 = 64; // just below the fixed header
+    const BAND = 110, top0 = opt.header ? 64 : -BAND * 0.4; // just below the fixed header
     for (let y = 0; y < rows; y++) {
       const py = (y + 0.5) * CELL;
       const a = clamp((py - top0) / BAND, 0, 1), b = clamp((H - py) / BAND, 0, 1);
@@ -390,6 +415,7 @@ function initPond(hero) {
   const onScreen = (p, pad = 0) => p.x > -pad && p.x < W + pad && p.y > -pad && p.y < H + pad;
 
   function desiredCount() {
+    if (opt.count) return opt.count;
     // the whole pond, on screen and off; up to a quarter are away at any moment
     if (W >= 2400) return 12;
     if (W >= 2000) return 11;
@@ -408,7 +434,7 @@ function initPond(hero) {
     S = W < 600 ? 0.8 : clamp(W / 1500, 0.92, 1.35);
     // ~42 tiles per body length at every size: 6px tiles on big screens, 5px on
     // half-screen windows, 4px on phones.
-    CELL = GLYPH_PX = clamp(Math.round(5.1 * S), 4, 6);
+    CELL = GLYPH_PX = opt.cell || clamp(Math.round(5.1 * S), 4, 6);
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     waterLayer.width = Math.round(W * dpr);
     waterLayer.height = Math.round(H * dpr);
@@ -440,16 +466,20 @@ function initPond(hero) {
     while (koi.length > want) koi.pop();
     const firstFill = koi.length === 0;
     const startOnScreen = Math.max(2, want - Math.floor(want * 0.25));
+    // spread the opening headings around the compass (golden-angle steps plus
+    // jitter) so the first thing visitors see is koi going every which way
+    const base = rand(0, Math.PI * 2);
+    let nth = 0;
     while (koi.length < want) {
       if (firstFill && koi.length < startOnScreen) {
         const at = pickWaypoint({ x: W * 0.8, y: H / 2 }, null, true);
         if (!at) break;
-        koi.push(newKoi(at));
+        koi.push(newKoi(at, base + nth++ * 2.39996 + rand(-0.35, 0.35)));
       } else {
-        // everyone else starts out of sight and swims in over the next while
+        // everyone else starts out of sight and swims in, facing into the pond
         const p = offscreenPoint();
-        const k = newKoi(p);
-        k.away = true; k.edge = p.edge; k.awayT = rand(0.5, firstFill ? 14 : 6);
+        const k = newKoi(p, Math.atan2(rand(H * 0.25, H * 0.75) - p.y, rand(W * 0.4, W * 0.9) - p.x));
+        k.away = true; k.edge = p.edge; k.awayT = rand(0.5, 6); // first arrivals come in sooner, so the opening has more going on
         k.waypoint = { x: p.x, y: p.y };
         k.fade = 1;
         koi.push(k);
@@ -867,6 +897,11 @@ function initPond(hero) {
   // A koi's pattern never changes, so its colours are worked out once into a
   // table over (along the body, across the body) instead of every frame.
   const PAT_S = 141, PAT_T = 33;
+  // push a colour further from grey (whites stay white) and a touch deeper
+  const vivid = (c) => {
+    const l = lum(c) * 255;
+    return c.map((v) => clamp(l + (v - l) * 1.55 - 8, 0, 255));
+  };
   function buildPatternTable(k, dark) {
     const base = rgb((dark && k.v.dark?.base) || k.v.base);
     const patch = rgb(k.v.patch);
@@ -893,8 +928,9 @@ function initPond(hero) {
         const ridge = bs > 0.32 && bs < 0.72 && Math.abs(tn) < 0.1;
         if (ridge) c = mixA(c, [20, 18, 18], 0.16);
         const i = (si * PAT_T + tj) * 5;
+        if (opt.vivid) c = vivid(c);
         tab[i] = c[0]; tab[i + 1] = c[1]; tab[i + 2] = c[2];
-        tab[i + 3] = lum(c) > 0.7 ? 0.3 : 0.4;
+        tab[i + 3] = (lum(c) > 0.7 ? 0.3 : 0.4) * (opt.vivid ? 0.55 : 1);
         tab[i + 4] = ridge ? 1 : 0;
       }
     }
@@ -924,7 +960,7 @@ function initPond(hero) {
   function rasterKoi(k, cells, dark) {
     KS = k.size;
     const R = maxR();
-    const fin = rgb(k.v.fin);
+    const fin = opt.vivid ? vivid(rgb(k.v.fin)) : rgb(k.v.fin);
     if (!k.tab || k.tabDark !== dark) { k.tab = buildPatternTable(k, dark); k.tabDark = dark; }
     const tab = k.tab;
     const amp = (2.5 + 3.5 * k.beat + 2.5 * Math.min(1, k.speed / (80 * S))) * S;
@@ -1036,7 +1072,7 @@ function initPond(hero) {
             let cr = tab[ti * 5] + (60 - tab[ti * 5]) * sh;
             let cg = tab[ti * 5 + 1] + (52 - tab[ti * 5 + 1]) * sh;
             let cb = tab[ti * 5 + 2] + (48 - tab[ti * 5 + 2]) * sh;
-            if (depth > 0.7) {
+            if (depth > 0.7 && !opt.vivid) {
               const w = (depth - 0.7) * 0.4;
               cr += (255 - cr) * w; cg += (255 - cg) * w; cb += (255 - cb) * w;
             }
@@ -1110,7 +1146,7 @@ function initPond(hero) {
     ctx.font = `${GLYPH_PX}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    drawWater(dark);
+    if (opt.water) drawWater(dark);
 
     // ripple rings
     const rippleColor = dark ? "#cbd5e1" : "#475569";
@@ -1187,7 +1223,7 @@ function initPond(hero) {
 
     // glyphs on top of the tiles (opacity only changes when it has to)
     let lastA = -1;
-    for (let i = 0; i < glyphs.length; i += 5) {
+    for (let i = 0; i < (opt.ascii ? glyphs.length : 0); i += 5) {
       const a = glyphs[i + 4];
       if (a < 0.02) continue;
       if (a !== lastA) { ctx.globalAlpha = a; lastA = a; }
@@ -1272,7 +1308,7 @@ function initPond(hero) {
     last = now;
     obstacleTimer += dt;
     if (obstacleTimer > 0.5) { obstacleTimer = 0; collectObstacles(); }
-    update(dt);
+    update(dt * opt.speed);
     draw();
   }
 
@@ -1290,6 +1326,18 @@ function initPond(hero) {
   }
 
   new ResizeObserver(resize).observe(hero);
+  // live controls for the demo page
+  hero.koiPond = {
+    opt,
+    set(key, value) {
+      opt[key] = value;
+      if (key === "cell" || key === "header") { TOP_BOUND = opt.header ? 90 : 12; resize(); }
+      if (key === "count") reconcile();
+      if (key === "vivid") for (const k of koi) k.tab = null;
+      if (key === "water") waterDirty = true;
+    },
+    feed: (x, y) => onClick({ target: hero, clientX: x, clientY: y }),
+  };
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; syncLoop(); }).observe(hero);
   document.addEventListener("visibilitychange", syncLoop);
   document.fonts?.ready.then(() => { collectObstacles(); });
