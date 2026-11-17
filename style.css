@@ -244,18 +244,14 @@ html, body {
   color: #000000;
 }
 
-/* Soft wash behind the text column so koi passing underneath don't fight
-   the copy. Sits under .hero-text's content, above the koi canvas. */
-.hero-text::before {
-  content: '';
-  position: absolute;
-  --wash: color-mix(in srgb, var(--bg-color) 72%, transparent);
-  inset: 4px 0;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 24px;
-  background: var(--wash);
-  box-shadow: 0 0 28px 20px var(--wash);
+/* Soft halo hugging each glyph (in the page background colour) so koi
+   passing underneath don't fight the copy, without fading a whole box. */
+.hero-text .hero-title,
+.hero-text .hero-meta {
+  text-shadow:
+    0 0 2px var(--bg-color),
+    0 0 6px var(--bg-color),
+    0 0 12px var(--bg-color);
 }
 
 .hero-meta {
