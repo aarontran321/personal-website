@@ -32,7 +32,7 @@ function initPond(hero) {
   // koi keeps the same number of tiles (the same detail) even as it shrinks.
   let CELL = 6;
   let GLYPH_PX = 6;
-  const TOTAL = 1.3; // spine length incl. tail fin, in body lengths
+  const TOTAL = 1.42; // spine length incl. tail fin, in body lengths
   const N = 28; // spine segments
   const CLEAR = 14; // minimum gap kept between a koi and any text
   const TOP_BOUND = 90; // stay below the fixed site header
@@ -183,10 +183,10 @@ function initPond(hero) {
   function bodyR(s) {
     const R = maxR();
     if (s < 0.22) return R * (0.5 + 0.5 * Math.sin((s / 0.22) * Math.PI / 2)); // blunt head
-    return R * (1 - 0.88 * Math.pow((s - 0.22) / 0.78, 1.5)); // long taper to the tail
+    return R * (1 - 0.74 * Math.pow((s - 0.22) / 0.78, 1.7)); // long taper to a sturdy tail root
   }
 
-  const waveEnv = (s) => 0.12 + 0.88 * Math.min(s, TOTAL) ** 2; // head steady, tail swings
+  const waveEnv = (s) => 0.12 + 0.88 * Math.min(s, 1.3) ** 2; // head steady, tail swings
 
   // Half-width the physics keeps clear around each spine point (fins included).
   function envelope(s) {
@@ -947,6 +947,8 @@ function initPond(hero) {
     const r0 = Math.max(0, Math.floor((minY - pad) / CELL)), r1 = Math.min(rows - 1, Math.ceil((maxY + pad) / CELL));
     if (c0 > c1 || r0 > r1) return; // entirely off-screen
     const tail = q[N - Math.round(N * (TOTAL - 1) / TOTAL)];
+    const ti0 = (PAT_S - 1) * PAT_T + (PAT_T >> 1); // body colour where the tail joins
+    const tailCol = [tab[ti0 * 5], tab[ti0 * 5 + 1], tab[ti0 * 5 + 2]];
 
     // nearest point on the spine for every tile near it: sweep each segment over
     // only the tiles within reach of it (much cheaper than every tile x every segment)
@@ -1017,13 +1019,34 @@ function initPond(hero) {
               };
           }
         } else {
-          // long forked tail fin
-          const u = (bs - 1) / (TOTAL - 1);
-          const fr = R * (0.2 + 0.95 * u ** 0.8);
-          const notch = u > 0.55 && Math.abs(blat) < fr * (u - 0.55) * 1.4;
-          if (best < fr && !notch) {
-            const ray = Math.floor(Math.atan2(py - tail.y, px - tail.x) * 9) & 1; // alternating fin rays
-            cell = { kind: "fin", fill: fin, fa: (0.3 + 0.3 * (1 - best / fr)) * (ray ? 1 : 0.7), glyph: rayGlyph(px - tail.x, py - tail.y) };
+          // tail fin seen from above: a broad, soft fan that spreads from the root,
+          // with only a shallow dip in the trailing edge and rounded lobe tips
+          let u = (bs - 1) / (TOTAL - 1), lat = Math.abs(blat);
+          if (bs >= TOTAL - 1e-4) {
+            // past the last spine point: measure along/across the tail's own line
+            // so the lobes end in points instead of a rounded cap
+            const e = q[N], pr = q[N - 3];
+            const dx = e.x - pr.x, dy = e.y - pr.y, dl = Math.hypot(dx, dy) || 1;
+            const ex = ((px - e.x) * dx + (py - e.y) * dy) / dl;
+            lat = Math.abs((px - e.x) * -dy + (py - e.y) * dx) / dl;
+            u = 1 + ex / (bodyLen() * (TOTAL - 1));
+          }
+          const half = R * (0.26 + 0.95 * Math.sin(Math.min(1, u) * Math.PI / 2) ** 1.3); // fans out, edges curve
+          const t = lat / half; // 0 on the midline, 1 at the outer edge
+          let trailing = 0.85 + 0.15 * t ** 1.6; // shallow dip in the middle
+          if (t > 0.7) trailing -= 0.3 * ((t - 0.7) / 0.3) ** 2; // rounded lobe tips
+          if (t < 1 && u < trailing && u >= 0) {
+            const ray = Math.floor(Math.atan2(py - tail.y, px - tail.x) * 11) & 1; // alternating fin rays
+            const rim = Math.max(t, 1 - (trailing - u) / 0.12); // lobe edges catch the light
+            // the body's colour bleeds into the root of the fin, then it turns
+            // translucent toward the tips
+            const k2 = 0.6 * (1 - Math.min(1, u * 1.6)) ** 1.5;
+            cell = {
+              kind: "fin",
+              fill: [fin[0] + (tailCol[0] - fin[0]) * k2, fin[1] + (tailCol[1] - fin[1]) * k2, fin[2] + (tailCol[2] - fin[2]) * k2],
+              fa: (0.42 + 0.3 * (1 - u) + 0.2 * Math.max(0, rim) ** 2) * (ray ? 1 : 0.75),
+              glyph: rayGlyph(px - tail.x, py - tail.y), galpha: 0.5,
+            };
           }
         }
         if (!cell) {
@@ -1115,7 +1138,7 @@ function initPond(hero) {
         if (c.glyph !== " ") glyphs.push(col, row, c.glyph, c.gcol, c.ga * c.fade * vis);
       } else {
         put(col, row, fill, c.fa * c.fade * vis);
-        glyphs.push(col, row, c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", 0.3 * c.fade * vis);
+        glyphs.push(col, row, c.glyph, lum(c.fill) > 0.5 ? "#0f172a" : "#ffffff", (c.galpha || 0.3) * c.fade * vis);
       }
     }
     tctx.putImageData(tileImg, 0, 0);
@@ -1206,8 +1229,10 @@ function initPond(hero) {
   // Everything sits on a 6px tile grid, so 30fps looks the same as 60 (or 120 on
   // ProMotion screens) at a fraction of the work.
   const FRAME_MS = 1000 / 30;
+  let held = false; // dev test hook can freeze the live loop
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    if (held) return;
     if (now - last < FRAME_MS - 2) return;
     const dt = Math.min(0.066, (now - last) / 1000 || 0);
     last = now;
@@ -1257,11 +1282,12 @@ function initPond(hero) {
         return { eaten: eatenTotal, minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
       },
       feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
+      hold: (on) => { held = on; },
       heads: () => koi.map((k) => [k.spine[0].x | 0, k.spine[0].y | 0, k.v.name]),
-      place(i, x, y) {
+      place(i, x, y, a = -Math.PI / 2) {
         const k = koi[i];
-        k.spine.forEach((p, j) => { p.x = x; p.y = y + j * seg(); });
-        k.heading = -Math.PI / 2;
+        k.spine.forEach((p, j) => { p.x = x - Math.cos(a) * j * seg(); p.y = y - Math.sin(a) * j * seg(); });
+        k.heading = a;
       },
       state: () => koi.map((k) => ({ depth: +(deep[Math.floor(k.spine[0].y / CELL) * cols + Math.floor(k.spine[0].x / CELL)] || 0).toFixed(2), feeding: !!k.food, away: !!k.away, fade: +k.fade.toFixed(2), leaving: k.leaving, speed: +(k.speed / S).toFixed(1), phase: k.phase, heading: k.heading })),
     };
