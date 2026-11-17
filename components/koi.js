@@ -122,6 +122,8 @@ function initPond(hero) {
 
   let W = 0, H = 0, dpr = 1, cols = 0, rows = 0;
   let S = 1; // size scale for the current window
+  let K = 1; // browser zoom-out factor (1 at 100%, 2 at 50%)
+  let VW = 0; // window width as it looks on screen (W / K)
   let obstacles = []; // text rects, hero-local coords
   let walls = []; // obstacles + out-of-bounds slabs (physics only)
   let blocked = new Uint8Array(0); // per-tile: 1 = touches text
@@ -436,25 +438,46 @@ function initPond(hero) {
   function desiredCount() {
     if (opt.count) return Math.max(0, opt.count);
     // the whole pond, on screen and off; up to a quarter are away at any moment
-    if (W >= 2400) return 12;
-    if (W >= 2000) return 11;
-    if (W >= 1700) return 9;
-    if (W >= 1400) return 8;
-    if (W >= 1000) return 6;
-    if (W >= 700) return 5;
+    if (VW >= 2400) return 12;
+    if (VW >= 2000) return 11;
+    if (VW >= 1700) return 9;
+    if (VW >= 1400) return 8;
+    if (VW >= 1000) return 6;
+    if (VW >= 700) return 5;
     return 4;
+  }
+
+  // Browser zoom-out, from how wide the window is on screen versus in CSS pixels
+  // (outerWidth doesn't change with zoom). Zooming in needs nothing: the page
+  // just behaves like a narrower window.
+  // Only trusted when the pixel density moved to match (real zoom changes
+  // devicePixelRatio too; a scaled-down preview or device emulation doesn't).
+  function zoomOut() {
+    const z = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+    if (z >= 0.9) return 1;
+    const native = (window.devicePixelRatio || 1) / z;
+    const real = [1, 1.25, 1.5, 1.75, 2, 2.5, 3].some((n) => Math.abs(native - n) / n < 0.08);
+    return real ? Math.min(4, Math.round((1 / z) * 20) / 20) : 1;
   }
 
   function resize() {
     W = hero.clientWidth;
     H = hero.clientHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Zooming the browser out makes CSS pixels physically smaller. Left alone,
+    // the 6px tiles would shrink to a few screen pixels and the pond would turn
+    // into a mesh of seams and unreadable glyphs. So work out the zoom and size
+    // everything by how big it looks on screen instead.
+    K = zoomOut();
+    VW = W / K;
     // Koi shrink a little on narrower windows so they don't crowd the pond, and
     // grow on wide screens.
-    S = W < 600 ? 0.8 : clamp(W / 1500, 0.92, 1.35);
+    S = (VW < 600 ? 0.8 : clamp(VW / 1500, 0.92, 1.35)) * K;
     // ~42 tiles per body length at every size: 6px tiles on big screens, 5px on
-    // half-screen windows, 4px on phones.
-    CELL = GLYPH_PX = opt.cell || clamp(Math.round(5.1 * S), 4, 6);
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // half-screen windows, 4px on phones. Snapped to whole device pixels so the
+    // seams between tiles line up.
+    const cell = (opt.cell || clamp(Math.round((5.1 * S) / K), 4, 6)) * K;
+    CELL = GLYPH_PX = K === 1 ? cell : Math.max(1, Math.round(cell * dpr)) / dpr;
     waterLayer.width = Math.round(W * dpr);
     waterLayer.height = Math.round(H * dpr);
     wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -873,7 +896,7 @@ function initPond(hero) {
   // Tilde water: evenly scattered `-` / `~` glyphs that drift on a current and
   // shimmer. Seeded on a jittered grid so they spread out instead of clumping.
   function seedWater() {
-    const gap = 36;
+    const gap = 36 * K;
     waterDots = [];
     for (let y = gap / 2; y < H; y += gap) {
       for (let x = gap / 2; x < W; x += gap) {
@@ -1199,7 +1222,7 @@ function initPond(hero) {
     const deepTint = dark ? [40, 52, 70] : [150, 172, 196]; // murky blue-grey
     // on narrow screens the text covers most of the pond, so "deep" koi stay
     // more visible there (they're behind the text, so it stays readable)
-    const deepDim = 0.6 + 0.26 * clamp((W - 700) / 500, 0, 1);
+    const deepDim = 0.6 + 0.26 * clamp((VW - 700) / 500, 0, 1);
 
     // tile colours -> one pixel each
     tileBuf.fill(0);
@@ -1369,6 +1392,7 @@ function initPond(hero) {
         hero, opt,
         get W() { return W; }, get H() { return H; }, get S() { return S; },
         get CELL() { return CELL; }, get time() { return time; },
+        get viewW() { return VW; }, // width as it looks on screen (allows for zoom)
         get topBound() { return TOP_BOUND; },
         koi: () => koi.map((k) => ({ x: k.spine[0].x, y: k.spine[0].y, heading: k.heading, speed: k.speed, fade: k.fade })),
         ripple: (x, y, maxR, life = 0.9, a = 0.45) => ripples.push({ x, y, age: 0, life, maxR, a }),

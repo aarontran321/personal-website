@@ -132,79 +132,89 @@ export function lilyPads(api, count = 0) {
     c: [0.645, 0.75], // lower left of the group
     d: [0.87, 0.87], // bottom right
   };
+  // by how wide the window looks on screen, so browser zoom doesn't change it
+  const viewW = () => api.viewW || api.W;
   const layout = () => {
-    const W = api.W;
+    const W = viewW();
     if (W >= 1100) return ["a", "b", "c", "d"];
     if (W >= 820) return ["a", "b", "d"];
     if (W >= 600) return ["b", "d"];
     return [];
   };
+  // pads get smaller as the window narrows (on top of the pond's own scale)
+  const padScale = () => api.S * Math.min(1.1, Math.max(0.72, viewW() / 1400));
 
   // Each pad goes at its spot, or if text is in the way, the nearest clear
   // point around it: well away from the text and the other pads.
-  function findSpot(name, skip) {
+  function findSpot(name, size, skip) {
     const S = api.S, W = api.W, H = api.H;
     const [fx, fy] = SPOTS[name];
-    const r = api.rand(27, 33) * S;
+    const r = size * padScale();
     const m = r + 18 * S;
     const ax = fx * W, ay = fy * H;
     const ok = (x, y) =>
       x > m && x < W - m && y > api.topBound + r + 40 * S && y < H - r - 30 * S &&
       api.clearance(x, y) >= r + 36 * S &&
-      !pads.some((p) => p !== skip && Math.hypot(p.x - x, p.y - y) < p.r + r + 50 * S);
-    if (ok(ax, ay)) return { x: ax, y: ay, r, zone: name };
+      !pads.some((p) => p !== skip && p.zone !== name && !p.gone && p.target &&
+        Math.hypot(p.target.x - x, p.target.y - y) < p.target.r + r + 50 * S);
+    if (ok(ax, ay)) return { x: ax, y: ay, r };
     for (let ring = 1; ring <= 12; ring++) {
       const d = ring * 14 * S;
       for (let k = 0; k < 16; k++) {
         const t = (k / 16) * TAU;
         const x = ax + Math.cos(t) * d, y = ay + Math.sin(t) * d;
-        if (ok(x, y)) return { x, y, r, zone: name };
+        if (ok(x, y)) return { x, y, r };
       }
     }
     return null; // no room near this spot on this screen: leave it out
   }
 
-  function newPad(spot, i) {
+  function newPad(zone) {
     return {
-      ...spot, a: api.rand(0, TAU), spin: api.rand(-0.04, 0.04),
+      zone, size: api.rand(27, 33), r: 0, x: 0, y: 0, home: null, target: null,
+      a: api.rand(0, TAU), spin: api.rand(-0.04, 0.04),
       notch: api.rand(0.35, 0.55), seed: api.rand(0, 100),
-      flower: spot.zone === "b" || spot.zone === "d", hue: Math.random(), f: 0, home: { x: spot.x, y: spot.y },
+      flower: zone === "b" || zone === "d", hue: Math.random(), f: 0,
     };
   }
 
-  function place() {
-    pads.length = 0;
-    layout().forEach((z, i) => {
-      const spot = findSpot(z);
-      if (spot) pads.push(newPad(spot, i));
-    });
+  // Work out where every pad belongs for the current window. Pads that are
+  // already showing glide there and resize (so dragging the window edge moves
+  // them along smoothly); new ones fade in; ones with no room fade out.
+  function layoutPads() {
+    const want = layout();
+    for (const p of pads) if (!want.includes(p.zone)) p.gone = true;
+    for (const z of want) if (!pads.some((p) => p.zone === z && !p.gone)) pads.push(newPad(z));
+    for (const p of pads) {
+      if (p.gone) continue;
+      const spot = findSpot(p.zone, p.size, p);
+      if (!spot) { p.gone = true; continue; }
+      p.target = spot;
+      if (!p.home) { p.home = { x: spot.x, y: spot.y }; p.r = spot.r; }
+    }
     lastW = api.W; lastH = api.H;
   }
 
   function update(dt) {
     if (!api.W) return;
-    if (!lastW || Math.abs(api.W - lastW) > 40 || Math.abs(api.H - lastH) > 80) place();
-    // every so often: a pad the text has reflowed onto moves somewhere open
+    if (api.W !== lastW || api.H !== lastH) layoutPads();
+    // every so often: check the text hasn't reflowed onto a pad
     checkT -= dt;
-    if (checkT <= 0) {
-      checkT = 1;
-      for (let i = 0; i < pads.length; i++) {
-        const p = pads[i];
-        if (api.clearance(p.x, p.y) < p.r + 8 * api.S) {
-          const spot = findSpot(p.zone, p);
-          if (spot) pads[i] = newPad(spot, i);
-          else { pads.splice(i, 1); i--; }
-        }
-      }
-    }
-    const t = api.time;
+    if (checkT <= 0) { checkT = 1; layoutPads(); }
+    const t = api.time, ease = 1 - Math.exp(-dt * 6);
     for (const p of pads) {
-      p.f = Math.min(1, p.f + dt / 1.2); // fade in
+      p.f = p.gone ? Math.max(0, p.f - dt / 0.6) : Math.min(1, p.f + dt / 1.2); // fade in / out
+      if (p.target) {
+        p.home.x += (p.target.x - p.home.x) * ease;
+        p.home.y += (p.target.y - p.home.y) * ease;
+        p.r += (p.target.r - p.r) * ease;
+      }
       p.a += p.spin * dt;
       // bob gently around its spot rather than wandering off
       p.x = p.home.x + Math.sin(t * 0.13 + p.seed) * 6 * api.S;
       p.y = p.home.y + Math.cos(t * 0.11 + p.seed * 1.3) * 5 * api.S;
     }
+    for (let i = pads.length - 1; i >= 0; i--) if (pads[i].gone && pads[i].f === 0) pads.splice(i, 1);
   }
 
   function drawOver(ctx, dark) {
@@ -214,6 +224,7 @@ export function lilyPads(api, count = 0) {
     const vein = dark ? "#a7d18f" : "#3f6b33";
     const shadow = dark ? "#000000" : "#64748b";
     for (const p of pads) {
+      if (!p.home) continue;
       const f = p.f;
       const c0 = Math.floor((p.x - p.r) / C), c1 = Math.ceil((p.x + p.r) / C);
       const r0 = Math.floor((p.y - p.r) / C), r1 = Math.ceil((p.y + p.r) / C);
