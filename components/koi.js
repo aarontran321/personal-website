@@ -470,13 +470,19 @@ function initPond(hero) {
     return { x, y };
   }
 
+  // a short pause between handfuls, so rapid clicking can't flood the pond
+  const FEED_GAP_MS = 1200;
+  let lastFeed = -Infinity;
   function onClick(e) {
     if (String(window.getSelection?.() || "").length) return;
     const spot = feedSpot(e);
     if (!spot) return;
+    const now = performance.now();
+    if (now - lastFeed < FEED_GAP_MS) return;
+    lastFeed = now;
     const { x, y } = spot;
     noteFed();
-    const n = 8 + Math.floor(Math.random() * 5);
+    const n = 5 + Math.floor(Math.random() * 3); // a small handful
     for (let i = 0; i < n && pellets.length < MAX_PELLETS; i++) {
       const a = rand(0, Math.PI * 2);
       const reach = (8 + 75 * Math.random() ** 1.5) * S; // denser near the middle
