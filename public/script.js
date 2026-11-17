@@ -1,3 +1,16 @@
+// LOCAL PREVIEW ONLY: try the whole site in dark mode on localhost.
+// ?dark=1 turns it on (it sticks as you click between pages), ?dark=0 turns it off.
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  const q = new URLSearchParams(location.search).get('dark');
+  try {
+    if (q === '1') localStorage.setItem('preview-dark', '1');
+    if (q === '0') localStorage.removeItem('preview-dark');
+    if (localStorage.getItem('preview-dark') === '1') {
+      document.body.classList.replace('light-mode', 'dark-mode');
+    }
+  } catch { /* storage blocked */ }
+}
+
 // Run scripts safely after DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.location.hash) {

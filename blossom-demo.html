@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cherry Blossom Pond — Demo</title>
+  <!-- Local-only sandbox: cherry blossom petals falling onto the koi pond (not
+       in vite.config.js, so it never ships). Open http://localhost:5173/blossom-demo.html
+       Add ?dark for dark mode. Press H to hide the controls for recording. -->
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    .hero { min-height: 0; height: 100vh; padding: 0; }
+
+    .controls {
+      position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+      z-index: 10; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+      max-width: calc(100vw - 32px); padding: 8px;
+      background: color-mix(in srgb, var(--bg-color, #f8fafc) 82%, transparent);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(100, 116, 139, 0.25); border-radius: 14px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      transition: opacity 0.2s;
+    }
+    .controls.hidden { opacity: 0; pointer-events: none; }
+    .controls button {
+      font: inherit; cursor: pointer; padding: 7px 11px; border-radius: 9px;
+      border: 1px solid rgba(100, 116, 139, 0.3); background: transparent;
+      color: inherit; white-space: nowrap;
+    }
+    .controls button:hover { border-color: rgba(100, 116, 139, 0.7); }
+    .controls button.on { background: #1e293b; color: #f8fafc; border-color: #1e293b; }
+    body.dark-mode .controls { color: #e2e8f0; }
+    body.dark-mode .controls button.on { background: #e2e8f0; color: #0f172a; border-color: #e2e8f0; }
+    .controls .hint { align-self: center; opacity: 0.55; padding: 0 6px; }
+  </style>
+</head>
+<body data-extras="petals" data-petal-rate="1">
+  <section class="hero" data-koi='{"header": false, "vivid": true, "count": 4}'></section>
+
+  <div class="controls" id="controls">
+    <button data-k="vivid">vivid colour</button>
+    <button data-k="cell" data-cycle="0,4,3" data-labels="detail: normal,detail: high,detail: ultra"></button>
+    <button data-k="ascii">ascii</button>
+    <button data-k="water">water</button>
+    <button data-k="count" data-cycle="4,-1,8,12" data-labels="koi: 4,koi: none,koi: 8,koi: 12"></button>
+    <button data-k="speed" data-cycle="1,0.5,2" data-labels="speed: 1x,speed: 0.5x,speed: 2x"></button>
+    <button id="bg"></button>
+    <button id="dark">dark</button>
+    <button data-k="ripples">cursor ripples</button>
+    <button data-x="school">small fish</button>
+    <button data-x="lilies">lily pads</button>
+    <button data-x="petals">petals</button>
+    <button id="petal-rate"></button>
+    <button id="feed">feed</button>
+    <span class="hint">H hides this</span>
+  </div>
+
+  <script>
+    if (new URLSearchParams(location.search).has("dark")) document.body.classList.add("dark-mode");
+  </script>
+  <script type="module" src="/components/koi.js"></script>
+  <script type="module" src="/components/pond-demo-ui.js"></script>
+</body>
+</html>
