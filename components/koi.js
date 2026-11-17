@@ -35,8 +35,9 @@ function initPond(hero) {
     cell: 0, // tile size override in px (0 = automatic)
     ascii: true, // characters on the koi
     water: true, // tilde water
-    count: 0, // number of koi override (0 = automatic)
+    count: 0, // number of koi override (0 = automatic, -1 = none)
     speed: 1, // simulation speed
+    ripples: true, // moving the cursor over the water leaves rings
     ...JSON.parse(hero.dataset.koi || "{}"),
   };
   // ---- tunables -----------------------------------------------------------
@@ -100,6 +101,23 @@ function initPond(hero) {
     }
   }
 
+  // Cursor ripples: moving over open water leaves a trail of small rings,
+  // bigger the faster the cursor moves.
+  let rx = null, ry = null, rt = 0;
+  function onRippleMove(e) {
+    if (!opt.ripples || !active) return;
+    const hr = hero.getBoundingClientRect();
+    const x = e.clientX - hr.left, y = e.clientY - hr.top;
+    const now = performance.now();
+    const d = rx === null ? 0 : Math.hypot(x - rx, y - ry);
+    if (rx !== null && d < 26 * S && now - rt < 600) return;
+    if (rx !== null && now - rt > 45 && clearance(x, y, obstacles) > 12) {
+      const fast = Math.min(1, d / (90 * S));
+      ripples.push({ x, y, age: 0, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * S, a: 0.45 });
+    }
+    rx = x; ry = y; rt = now;
+  }
+
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let W = 0, H = 0, dpr = 1, cols = 0, rows = 0;
@@ -111,6 +129,7 @@ function initPond(hero) {
   let layoutSig = "";
   let edgeRow = new Float32Array(0); // per-row fade near the top and bottom edges
   let koi = [], pellets = [], ripples = [], bubbles = [], waterDots = [];
+  const extras = []; // optional add-ons (demo pages): { update, drawUnder, drawOver }
   let time = 0;
   let running = false, visible = true, raf = 0, last = 0, active = false;
   let varietyCursor = Math.floor(Math.random() * VARIETIES.length);
@@ -415,7 +434,7 @@ function initPond(hero) {
   const onScreen = (p, pad = 0) => p.x > -pad && p.x < W + pad && p.y > -pad && p.y < H + pad;
 
   function desiredCount() {
-    if (opt.count) return opt.count;
+    if (opt.count) return Math.max(0, opt.count);
     // the whole pond, on screen and off; up to a quarter are away at any moment
     if (W >= 2400) return 12;
     if (W >= 2000) return 11;
@@ -805,6 +824,7 @@ function initPond(hero) {
     ripples = ripples.filter((r) => r.age < r.life);
     for (const k of koi) updateKoi(k, dt);
     KS = 1;
+    for (const x of extras) if (x.on !== false) x.update?.(dt);
     // a trapped koi fades out and reappears somewhere open
     for (let i = 0; i < koi.length; i++) {
       const k = koi[i], h = k.spine[0];
@@ -1161,12 +1181,16 @@ function initPond(hero) {
         const key = col * 100003 + row;
         if (seen.has(key) || isBlocked(col, row)) continue;
         seen.add(key);
-        ctx.globalAlpha = 0.45 * (1 - p);
+        ctx.globalAlpha = (r.a ?? 0.45) * (1 - p);
         stamp("~", rippleColor, col, row);
       }
     }
 
-    if (!koi.length) { ctx.globalAlpha = 1; return; }
+    for (const x of extras) if (x.on !== false && x.drawUnder) { ctx.globalAlpha = 1; x.drawUnder(ctx, dark); }
+    const drawOver = () => {
+      for (const x of extras) if (x.on !== false && x.drawOver) { ctx.globalAlpha = 1; x.drawOver(ctx, dark); }
+    };
+    if (!koi.length) { drawOver(); ctx.globalAlpha = 1; return; }
     const cells = new Map();
     // bottom to top; each koi keeps its own depth so overlaps are consistent
     for (const k of [...koi].sort((a, b) => a.z - b.z)) rasterKoi(k, cells, dark);
@@ -1229,6 +1253,7 @@ function initPond(hero) {
       if (a !== lastA) { ctx.globalAlpha = a; lastA = a; }
       stamp(glyphs[i + 2], glyphs[i + 3], glyphs[i], glyphs[i + 1]);
     }
+    drawOver(); // lily pads, petals...: on the surface, above the koi
     // feed floats on the surface, so it's drawn over the koi: a fish passing
     // underneath doesn't hide it. Each pellet bobs and casts its own shadow.
     const ps = Math.max(4, Math.round(5 * S + 1));
@@ -1337,12 +1362,30 @@ function initPond(hero) {
       if (key === "water") waterDirty = true;
     },
     feed: (x, y) => onClick({ target: hero, clientX: x, clientY: y }),
+    // Add-ons get a window into the pond. Each is a function (api) => ({ update,
+    // drawUnder, drawOver }); flip its `on` to show or hide it.
+    use(make) {
+      const api = {
+        hero, opt,
+        get W() { return W; }, get H() { return H; }, get S() { return S; },
+        get CELL() { return CELL; }, get time() { return time; },
+        get topBound() { return TOP_BOUND; },
+        koi: () => koi.map((k) => ({ x: k.spine[0].x, y: k.spine[0].y, heading: k.heading, speed: k.speed, fade: k.fade })),
+        ripple: (x, y, maxR, life = 0.9, a = 0.45) => ripples.push({ x, y, age: 0, life, maxR, a }),
+        isBlocked, stamp, glyph, rand, clamp,
+      };
+      const x = make(api);
+      extras.push(x);
+      return x;
+    },
   };
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; syncLoop(); }).observe(hero);
   document.addEventListener("visibilitychange", syncLoop);
   document.fonts?.ready.then(() => { collectObstacles(); });
   if (!reduceMotion) {
     hero.addEventListener("click", onClick);
+    hero.addEventListener("pointermove", onRippleMove);
+    hero.addEventListener("pointerleave", () => { rx = null; });
     hero.addEventListener("mousemove", onHover);
     hero.addEventListener("mouseleave", () => { hero.style.cursor = ""; label.classList.remove("is-on"); });
   }
@@ -1361,7 +1404,7 @@ function initPond(hero) {
           }
         }
         draw();
-        return { eaten: eatenTotal, minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
+        return { eaten: eatenTotal, ripples: ripples.length, minClear, n: koi.length, active, S, W, pellets: pellets.length, landed: pellets.filter((p) => p.landed).length, bubbles: bubbles.map((b) => [b.x | 0, b.y | 0, +b.age.toFixed(2)]) };
       },
       feed: (x, y) => onClick({ target: hero, clientX: x + hero.getBoundingClientRect().left, clientY: y + hero.getBoundingClientRect().top }),
       hold: (on) => { held = on; },
