@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -84,12 +84,23 @@ const WORLD_VIEW_HEIGHT = 3.75;
 // see the WORLD_VIEW_HEIGHT comment above. R3F's default camera setup only
 // recomputes left/right/top/bottom from `size` on resize; it never touches
 // `zoom`, so this has to be done by hand.
+//
+// R3F also never recomputes `viewport` when only `zoom` changes -- it does so
+// on size or camera changes, and that happens *before* this effect runs, i.e.
+// with the previous zoom (1 on first mount). Without the explicit refresh
+// below, CharacterRig read a viewport ~120 world units tall, put groundY far
+// below the visible strip, and the character stayed invisible until some
+// later resize happened to recompute it -- which is why it only showed up
+// some of the time.
 function SyncOrthoZoom() {
-  const { camera, size } = useThree();
-  useEffect(() => {
+  const { camera, size, set } = useThree();
+  useLayoutEffect(() => {
     camera.zoom = size.height / WORLD_VIEW_HEIGHT;
     camera.updateProjectionMatrix();
-  }, [camera, size.height]);
+    set((state) => ({
+      viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) },
+    }));
+  }, [camera, size.height, set]);
   return null;
 }
 
