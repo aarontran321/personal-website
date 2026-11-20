@@ -1043,10 +1043,10 @@ section.projects {
 
 .bento-card--retermina { grid-column: span 8; grid-row: span 2; }
 .bento-card--baam      { grid-column: span 4; grid-row: span 2; }
-.bento-card--plotboard { grid-column: span 6; grid-row: span 1; }
+.bento-card--plotboard { grid-column: 1 / 7; grid-row: span 1; }
 .bento-card--nutriai   { grid-column: span 6; grid-row: span 1; }
-.bento-card--lasertag  { grid-column: 1 / 5; grid-row: span 1; }
-.bento-card--marrymap  { grid-column: 5 / 13; grid-row: span 1; }
+.bento-card--lasertag  { grid-column: span 6; grid-row: span 1; }
+.bento-card--marrymap  { grid-column: 7 / 13; grid-row: span 1; }
 
 /* --- cards with a redirect target (live demo or GitHub) --- */
 .bento-card--clickable {
@@ -1095,26 +1095,23 @@ section.projects {
   min-height: 420px;
 }
 
-.bento-card--plotboard .bento-visual {
-  aspect-ratio: 16 / 9;
-  min-height: 340px;
-}
-
 .bento-card--nutriai .bento-visual {
   aspect-ratio: 16 / 9;
   min-height: 340px;
 }
 
-/* --- Laser Tag Now!: smaller trailing block, doesn't span the full row --- */
+/* --- Laser Tag Now!: pairs with nutri.ai above the trailing projects --- */
 .bento-card--lasertag .bento-visual {
   aspect-ratio: 4 / 3;
   min-height: 220px;
 }
 
-/* --- Marrymap: wide trailing block, pairs with Laser Tag Now!'s row --- */
+/* Keep the final row's landscape previews aligned above their descriptions. */
+.bento-card--plotboard .bento-visual,
 .bento-card--marrymap .bento-visual {
-  aspect-ratio: 21 / 8;
-  min-height: 260px;
+  flex: none;
+  aspect-ratio: 1600 / 819;
+  min-height: 0;
 }
 
 .thumb-img,
@@ -1277,12 +1274,14 @@ section.projects {
   background: #000;
 }
 
-/* --- Plotboard: solid field-green with a route-diagram glyph --- */
-.bento-visual--field {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #15803d;
+/* Match the thumbnail's native ratio and fill the frame at every size. */
+.bento-visual--field .thumb-img,
+.bento-visual--field .thumb-video {
+  object-position: center;
+}
+
+.bento-card:hover .bento-visual--field .thumb-img {
+  transform: none;
 }
 
 /* --- Marrymap: solid rose field with a heart/match glyph --- */
@@ -1368,7 +1367,7 @@ section.projects {
   }
 
   .bento-card--retermina,
-  .bento-card--plotboard,
+  .bento-card--lasertag,
   .bento-card--nutriai {
     grid-column: span 2;
     grid-row: span 1;
@@ -1379,7 +1378,7 @@ section.projects {
     grid-row: span 1;
   }
 
-  .bento-card--lasertag {
+  .bento-card--plotboard {
     grid-column: 1 / 2;
     grid-row: span 1;
   }
@@ -1387,10 +1386,6 @@ section.projects {
   .bento-card--marrymap {
     grid-column: 2 / 3;
     grid-row: span 1;
-  }
-
-  .bento-card--marrymap .bento-visual {
-    aspect-ratio: 16 / 9;
   }
 
   /* the desktop min-heights are taller than a narrow column is wide, which
@@ -1423,9 +1418,7 @@ section.projects {
     aspect-ratio: 16 / 10;
   }
 
-  .bento-card--plotboard .bento-visual,
   .bento-card--nutriai .bento-visual,
-  .bento-card--marrymap .bento-visual,
   .bento-card--lasertag .bento-visual {
     aspect-ratio: 16 / 9;
   }
