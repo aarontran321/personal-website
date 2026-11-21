@@ -115,8 +115,10 @@ export function initPond(hero) {
   // Cursor ripples: moving over open water leaves a trail of small rings,
   // bigger the faster the cursor moves. Rings are laid down at an even spacing
   // along the path the cursor actually travelled (filling in between pointer
-  // events), so a fast flick still leaves a continuous, if gappy, trail rather
-  // than a ring every ~100px.
+  // events). The spacing widens with cursor speed (up to ~3.5x at a fast
+  // flick), so slow moves leave a close trail and fast ones a sparse one. A
+  // jump longer than MAX_RINGS spacings spreads its rings across the whole
+  // jump instead of leaving the far end bare.
   // Ripple sizes go by the page scale, not the koi size, so a pond of tiny koi
   // (the footer) still gets visible rings.
   const rScale = () => (S / opt.koiScale) * opt.rippleScale;
@@ -128,21 +130,29 @@ export function initPond(hero) {
     const now = performance.now();
     if (rx === null) { rx = x; ry = y; rt = now; return; }
     const RS = rScale();
-    const gap = 34 * RS; // spacing between rings along the path: close, but you can still see each one
+    const baseGap = 34 * RS; // slow-move spacing: close, but you can still see each one
     const d = Math.hypot(x - rx, y - ry);
-    if (d < gap && now - rt < 600) return;
     const elapsed = Math.max(16, now - rt);
-    const fast = Math.min(1, d / elapsed / 1.4); // px per ms -> 0..1
-    const n = Math.max(1, Math.min(10, Math.floor(d / gap)));
+    const speed = d / elapsed; // average px per ms since the last ring
+    const fast = Math.min(1, speed / 1.4); // 0..1, drives ring size
+    // spacing only starts widening above a slow drift (0.4px/ms), so slow
+    // trails keep their close spacing; full sparseness by ~2.4px/ms
+    const sparse = Math.min(1, Math.max(0, (speed - 0.4) / 2));
+    const gap = baseGap * (1 + 2.5 * sparse);
+    if (d < gap && now - rt < 600) return;
+    const MAX_RINGS = 10;
+    const steps = d / gap;
+    const n = Math.max(1, Math.min(MAX_RINGS, Math.floor(steps)));
+    const spacing = steps > MAX_RINGS ? d / MAX_RINGS : gap;
     for (let i = 1; i <= n; i++) {
-      const t = n === 1 && d < gap ? 1 : (i * gap) / d;
+      const t = n === 1 && d < gap ? 1 : (i * spacing) / d;
       const px = rx + (x - rx) * t, py = ry + (y - ry) * t;
       if (clearance(px, py, obstacles) <= 12) continue;
       // rings further back along the path started a moment earlier
       const age = ((n - i) / n) * Math.min(0.12, elapsed / 1000);
       ripples.push({ x: px, y: py, age, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * RS, a: 0.45 });
     }
-    if (n === 10 || d < gap) { rx = x; ry = y; }
+    if (steps > MAX_RINGS || d < gap) { rx = x; ry = y; }
     else { const t = (n * gap) / d; rx += (x - rx) * t; ry += (y - ry) * t; }
     rt = now;
   }
