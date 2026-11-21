@@ -322,6 +322,48 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================
+// VIDEO SCROLL GATE
+// Putting new frames from several playing videos on screen while
+// the page scrolls was dropping homepage scrolling from ~120fps to
+// ~80fps with 34ms hitches. So every on-screen video holds its
+// current frame while the page is actively scrolling and picks up
+// again ~150ms after scrolling stops. The players below call
+// play()/pause() through this gate instead of on the element.
+// ==========================================================
+const videoScrollGate = (() => {
+  const RESUME_DELAY_MS = 150;
+  const wanted = new Map(); // video -> callback run once it's actually playing
+  let timer = null;
+
+  function start(video) {
+    const onPlaying = wanted.get(video);
+    const p = video.play();
+    if (p !== undefined) p.then(() => onPlaying && onPlaying()).catch(() => {});
+    else if (onPlaying) onPlaying();
+  }
+
+  window.addEventListener('scroll', () => {
+    if (timer === null) wanted.forEach((_, video) => video.pause());
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      wanted.forEach((_, video) => start(video));
+    }, RESUME_DELAY_MS);
+  }, { passive: true });
+
+  return {
+    play(video, onPlaying) {
+      wanted.set(video, onPlaying);
+      if (timer === null) start(video);
+    },
+    pause(video) {
+      wanted.delete(video);
+      video.pause();
+    },
+  };
+})();
+
+// ==========================================================
 // PROJECT VIDEO AUTOPLAY (Intersection Observer)
 // Videos only play while their card is actually on screen —
 // they pause the instant they scroll out of frame so we're not
@@ -354,14 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!video.src && video.dataset.src) {
           video.src = video.dataset.src;
         }
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => video.classList.add('playing')).catch(() => {});
-        } else {
-          video.classList.add('playing');
-        }
+        videoScrollGate.play(video, () => video.classList.add('playing'));
       } else {
-        video.pause();
+        videoScrollGate.pause(video);
         video.classList.remove('playing');
       }
     });
@@ -405,11 +442,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const clip = clips[i];
       if (!clip.src && clip.dataset.src) clip.src = clip.dataset.src;
       if (reset) clip.currentTime = 0;
-      clip.play().catch(() => {});
+      // drop the other clips from the gate, or a scroll ending would
+      // restart an already-finished clip behind the active one
+      clips.forEach((other, ci) => { if (ci !== i) videoScrollGate.pause(other); });
+      videoScrollGate.play(clip);
     }
 
     function pauseAll() {
-      clips.forEach(clip => clip.pause());
+      clips.forEach(clip => videoScrollGate.pause(clip));
     }
 
     clips.forEach(clip => {
