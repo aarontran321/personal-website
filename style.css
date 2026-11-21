@@ -1457,7 +1457,7 @@ section.projects {
      z-index 1) always draws on top of the strip, so the bottom padding only
      needs to cover part of the character -- the rest can tuck behind. */
   --footer-scene-h: clamp(85px, 8vw, 140px);
-  --footer-char-clearance: calc(var(--footer-scene-h) * 0.7 + 40px);
+  --footer-char-clearance: calc(var(--footer-scene-h) * 0.7 + 24px);
   position: relative;
   overflow: hidden;
   background: #19191b;
