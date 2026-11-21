@@ -1455,7 +1455,7 @@ section.projects {
      z-index 1) always draws on top of the strip, so the bottom padding only
      needs to cover part of the character -- the rest can tuck behind. */
   --footer-scene-h: clamp(85px, 8vw, 140px);
-  --footer-char-clearance: calc(var(--footer-scene-h) * 0.7 - 18px);
+  --footer-char-clearance: calc(var(--footer-scene-h) * 0.7);
   position: relative;
   overflow: hidden;
   background: #19191b;
@@ -1465,7 +1465,7 @@ section.projects {
 .footer-inner {
   max-width: none;
   margin: 0 auto;
-  padding: 24px clamp(18px, 3.15vw, 50.4px) var(--footer-char-clearance) clamp(12.6px, 1.62vw, 21.6px);
+  padding: 12px clamp(18px, 3.15vw, 50.4px) var(--footer-char-clearance) clamp(12.6px, 1.62vw, 21.6px);
   position: relative;
   z-index: 1;
   /* the 3D character strip sits underneath this layer — clicks must fall
@@ -1506,7 +1506,7 @@ section.projects {
   /* nudges the sign-off row down a touch without touching
      .footer-inner's padding, so the reserved empty space
      below (min-height / padding-bottom) stays untouched */
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .footer-sign-off {
@@ -1642,7 +1642,7 @@ section.projects {
        taller than the desktop row layout, so the old 65.7px reserve left
        far less clearance than .footer-scene's own height -- this scales
        both together so the footer doesn't read as squished. */
-    padding: 28px 16px var(--footer-char-clearance) clamp(12.6px, 3.6vw, 16px);
+    padding: 16px 16px var(--footer-char-clearance) clamp(12.6px, 3.6vw, 16px);
     min-height: 0;
   }
 
