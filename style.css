@@ -1449,6 +1449,12 @@ section.projects {
    custom elements.
    ========================================== */
 .site-footer {
+  /* Height of the .footer-scene canvas strip. The character's rendered
+     height is ~70% of it (CHARACTER_HEIGHT * SCALE_MULTIPLIER / WORLD_VIEW_HEIGHT
+     in FooterScene.jsx = 2.61 / 3.75), so .footer-inner's bottom padding is
+     derived from this to keep the links/text fully clear of the character. */
+  --footer-scene-h: clamp(85px, 8vw, 140px);
+  --footer-char-clearance: calc(var(--footer-scene-h) * 0.7 + 12px);
   position: relative;
   overflow: hidden;
   background: #19191b;
@@ -1458,8 +1464,7 @@ section.projects {
 .footer-inner {
   max-width: none;
   margin: 0 auto;
-  padding: 14.4px clamp(18px, 3.15vw, 50.4px) 65.7px clamp(12.6px, 1.62vw, 21.6px);
-  min-height: 199.8px;
+  padding: 6px clamp(18px, 3.15vw, 50.4px) var(--footer-char-clearance) clamp(12.6px, 1.62vw, 21.6px);
   position: relative;
   z-index: 1;
   /* the 3D character strip sits underneath this layer — clicks must fall
@@ -1486,7 +1491,7 @@ section.projects {
   left: 0;
   right: 0;
   bottom: 0;
-  height: clamp(100px, 9.6vw, 170px);
+  height: var(--footer-scene-h);
   z-index: 0;
   pointer-events: none;
 }
@@ -1500,7 +1505,7 @@ section.projects {
   /* nudges the sign-off row down a touch without touching
      .footer-inner's padding, so the reserved empty space
      below (min-height / padding-bottom) stays untouched */
-  margin-top: 12.6px;
+  margin-top: 4px;
 }
 
 .footer-sign-off {
@@ -1626,13 +1631,17 @@ section.projects {
 }
 
 @media (max-width: 767px) {
+  .site-footer {
+    --footer-scene-h: clamp(110px, 29vw, 155px);
+  }
+
   .footer-inner {
     /* Bottom padding reserves the runway .footer-scene's character walks
        in. The stacked column layout below makes .footer-top itself much
        taller than the desktop row layout, so the old 65.7px reserve left
        far less clearance than .footer-scene's own height -- this scales
        both together so the footer doesn't read as squished. */
-    padding: 18px 16px clamp(120px, 32vw, 170px) clamp(12.6px, 3.6vw, 16px);
+    padding: 10px 16px var(--footer-char-clearance) clamp(12.6px, 3.6vw, 16px);
     min-height: 0;
   }
 
@@ -1646,13 +1655,6 @@ section.projects {
     align-items: flex-start;
   }
 
-  /* Bigger than the reserved bottom padding above by design at most mobile
-     widths -- the character's runway is meant to read as roomier here, and
-     the z-index layering in FooterScene.jsx already handles it drawing in
-     front of the text on the widths where the two now overlap. */
-  .footer-scene {
-    height: clamp(130px, 34vw, 185px);
-  }
 }
 
 /* ==========================================
