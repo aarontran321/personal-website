@@ -1369,20 +1369,30 @@ section.projects {
   }
 
   .bento-card--retermina,
-  .bento-card--lasertag,
   .bento-card--nutriai {
     grid-column: span 2;
-    grid-row: span 1;
-  }
-
-  .bento-card--baam {
-    grid-column: span 1;
     grid-row: span 1;
   }
 
   .bento-card--plotboard {
     grid-column: 1 / 2;
     grid-row: span 1;
+  }
+
+  /* the two phone projects share a row, side by side, so neither one
+     sits alone in a half-width column with an empty gap beside it */
+  .bento-card--baam,
+  .bento-card--lasertag {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  /* same fixed shape for both phone previews (no flex stretch), so their
+     titles and descriptions start on the same line */
+  .bento-card--baam .bento-visual,
+  .bento-card--lasertag .bento-visual {
+    flex: none;
+    aspect-ratio: 4 / 5;
   }
 
   .bento-card--marrymap {
