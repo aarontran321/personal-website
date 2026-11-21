@@ -1,82 +1,39 @@
-// React island entry: mounts the 3D footer scene into the existing static
-// .site-footer. Everything (React, three.js, the ~424KB .glb) is loaded lazily
-// so it costs nothing on initial page load -- and on reduced-motion or
-// metered/slow clients it is never loaded at all (see below).
+// Footer koi: a single small koi swimming in the dark footer band, using the
+// same ASCII-tile koi engine as the hero pond (components/koi.js), just
+// configured smaller and without feeding.
 //
-// Loading happens in two scroll-gated stages, because the whole payload is
-// ~1.1MB and downloading it all only once the footer is 600px away used to
-// leave the character missing for several seconds:
+// - Mouse/trackpad: the koi fades in when the cursor enters the footer and
+//   swims after it, then fades back out when the cursor leaves.
+// - Touch screens: no cursor to follow, so the koi is always visible and just
+//   swims around the footer on its own.
 //
-//   PRELOAD_MARGIN  fetch the model AND import the chunks, in parallel
-//   MOUNT_MARGIN    actually render (starts the WebGL render loop)
+// The canvas sits under .footer-inner (z-index 1), so the text and links are
+// always drawn on top of the koi and stay clickable.
 //
-// Splitting the two is what keeps a render loop from spinning while the footer
-// is still a screen and a half away.
+// (The previous 3D Yasuo footer lives in FooterScene.jsx / models.jsx and is
+// no longer mounted.)
 
-import chibiYasuoUrl from "./chibi_yasuo.glb?url";
-import { preloadModel } from "./model-preload.js";
-
-// Far enough out that the ~2.5s of transfer is usually done before the footer
-// is on screen. Only a URL string is imported above, so this file stays tiny.
-const PRELOAD_MARGIN = "2500px";
-const MOUNT_MARGIN = "600px";
+import { initPond } from "./koi.js";
 
 const footer = document.querySelector(".site-footer");
 
-// Touch devices have no cursor to chase, but FooterScene.jsx now also reacts
-// to taps (see the pointerdown listener there) -- tap near the footer and
-// the character walks to that spot, tap on the character and it casts. So
-// touch/narrow viewports no longer need to skip the scene entirely; only
-// keep the skip for cases where running it is a genuinely bad idea:
-// reduced-motion (accessibility) and metered/slow connections.
-const conn = navigator.connection;
-const skipScene =
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-  (conn && (conn.saveData || /2g/.test(conn.effectiveType || "")));
-
-let modulesPromise = null;
-
-// The model download and the JS chunks are kicked off in the same tick. Left
-// to itself the model can't even be *requested* until FooterScene's ~933KB
-// chunk has finished downloading and evaluating -- models.jsx only asks for it
-// at module scope -- which serialised two multi-second transfers back to back.
-// models.jsx reads the very ArrayBuffer this starts (see model-preload.js).
-function preloadScene() {
-  if (modulesPromise) return modulesPromise;
-  preloadModel(chibiYasuoUrl).catch(() => {});
-  modulesPromise = Promise.all([
-    import("react-dom/client"),
-    import("./FooterScene.jsx"),
-  ]);
-  return modulesPromise;
-}
-
-async function mountScene() {
-  const [{ createRoot }, { default: FooterScene }] = await preloadScene();
-  const mount = document.createElement("div");
-  mount.className = "footer-scene";
-  footer.appendChild(mount);
-  createRoot(mount).render(<FooterScene />);
-}
-
-function observeOnce(rootMargin, run) {
-  const io = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        io.disconnect();
-        run();
-      }
-    },
-    { rootMargin }
-  );
-  io.observe(footer);
-}
-
-if (footer && !skipScene) {
-  if ("IntersectionObserver" in window) {
-    observeOnce(PRELOAD_MARGIN, preloadScene);
-    observeOnce(MOUNT_MARGIN, mountScene);
-  } else {
-    mountScene();
-  }
+if (footer) {
+  footer.dataset.koi = JSON.stringify({
+    header: false, // no fixed site header to keep clear of in here
+    count: 1,
+    koiScale: 0.3, // ~65px long on desktop instead of ~215px in the hero
+    cell: 2, // 2px tiles keep ~32 tiles per body length: small but detailed
+    seams: false, // tile gaps would eat half of a 2px tile
+    ascii: false, // glyphs are unreadable at 2px; the shading carries the detail
+    water: false,
+    feed: false,
+    follow: true,
+    dark: true, // the footer is always charcoal, whatever the site theme
+    rippleScale: 0.7, // slightly smaller rings to suit the short footer band
+    edgeBand: 18,
+    fall: 24,
+    textSel: ".footer-heading, .footer-subtext",
+    boxSel: ".footer-nav a, .footer-email-btn",
+  });
+  initPond(footer);
 }

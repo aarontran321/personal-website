@@ -26,7 +26,7 @@ const VARIETIES = [
   { name: "benigoi", base: "#e8562a", patch: "#d9401f", fin: "#f4b49a" },
 ];
 
-function initPond(hero) {
+export function initPond(hero) {
   // Options. The homepage uses the defaults; the local demo page (koi-demo.html)
   // passes some in via data-koi and flips the rest live with hero.koiPond.set().
   const opt = {
@@ -38,6 +38,17 @@ function initPond(hero) {
     count: 0, // number of koi override (0 = automatic, -1 = none)
     speed: 1, // simulation speed
     ripples: true, // moving the cursor over the water leaves rings
+    // --- used by the footer koi (components/footer-main.jsx) ---
+    feed: true, // click to drop food
+    follow: false, // on hover devices, swim after the cursor while it's over the pond and fade in/out with it
+    koiScale: 1, // multiplies the koi's size (and everything sized with it)
+    edgeBand: 110, // px over which koi fade out at the top/bottom edges
+    fall: 70, // px of "deep water" dimming around text
+    dark: false, // always use the dark palette (pond sits on a dark background)
+    rippleScale: 1, // size/spacing of cursor ripples relative to the page
+    seams: true, // 1px gaps between tiles (off for tiny tiles, where they'd eat the detail)
+    textSel: ".hero-title, .edu-line, .hero-bullets li", // text the koi treat as obstacles
+    boxSel: ".intern-card, .inline-highlight, .bullet-tag, .tag-circle, .scroll-indicator",
     ...JSON.parse(hero.dataset.koi || "{}"),
   };
   // ---- tunables -----------------------------------------------------------
@@ -102,20 +113,38 @@ function initPond(hero) {
   }
 
   // Cursor ripples: moving over open water leaves a trail of small rings,
-  // bigger the faster the cursor moves.
+  // bigger the faster the cursor moves. Rings are laid down at an even spacing
+  // along the path the cursor actually travelled (filling in between pointer
+  // events), so a fast flick still leaves a continuous, if gappy, trail rather
+  // than a ring every ~100px.
+  // Ripple sizes go by the page scale, not the koi size, so a pond of tiny koi
+  // (the footer) still gets visible rings.
+  const rScale = () => (S / opt.koiScale) * opt.rippleScale;
   let rx = null, ry = null, rt = 0;
   function onRippleMove(e) {
     if (!opt.ripples || !active) return;
     const hr = hero.getBoundingClientRect();
     const x = e.clientX - hr.left, y = e.clientY - hr.top;
     const now = performance.now();
-    const d = rx === null ? 0 : Math.hypot(x - rx, y - ry);
-    if (rx !== null && d < 26 * S && now - rt < 600) return;
-    if (rx !== null && now - rt > 45 && clearance(x, y, obstacles) > 12) {
-      const fast = Math.min(1, d / (90 * S));
-      ripples.push({ x, y, age: 0, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * S, a: 0.45 });
+    if (rx === null) { rx = x; ry = y; rt = now; return; }
+    const RS = rScale();
+    const gap = 34 * RS; // spacing between rings along the path: close, but you can still see each one
+    const d = Math.hypot(x - rx, y - ry);
+    if (d < gap && now - rt < 600) return;
+    const elapsed = Math.max(16, now - rt);
+    const fast = Math.min(1, d / elapsed / 1.4); // px per ms -> 0..1
+    const n = Math.max(1, Math.min(10, Math.floor(d / gap)));
+    for (let i = 1; i <= n; i++) {
+      const t = n === 1 && d < gap ? 1 : (i * gap) / d;
+      const px = rx + (x - rx) * t, py = ry + (y - ry) * t;
+      if (clearance(px, py, obstacles) <= 12) continue;
+      // rings further back along the path started a moment earlier
+      const age = ((n - i) / n) * Math.min(0.12, elapsed / 1000);
+      ripples.push({ x: px, y: py, age, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * RS, a: 0.45 });
     }
-    rx = x; ry = y; rt = now;
+    if (n === 10 || d < gap) { rx = x; ry = y; }
+    else { const t = (n * gap) / d; rx += (x - rx) * t; ry += (y - ry) * t; }
+    rt = now;
   }
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -315,13 +344,13 @@ function initPond(hero) {
       if (r.width < 1 || r.height < 1) return;
       out.push({ x0: r.left - hr.left, y0: r.top - hr.top, x1: r.right - hr.left, y1: r.bottom - hr.top });
     };
-    hero.querySelectorAll(".hero-title, .edu-line, .hero-bullets li").forEach((el) => {
+    hero.querySelectorAll(opt.textSel).forEach((el) => {
       const range = document.createRange();
       range.selectNodeContents(el);
       for (const r of range.getClientRects()) add(r);
     });
     hero
-      .querySelectorAll(".intern-card, .inline-highlight, .bullet-tag, .tag-circle, .scroll-indicator")
+      .querySelectorAll(opt.boxSel)
       .forEach((el) => add(el.getBoundingClientRect()));
     obstacles = out;
     const big = 1e5;
@@ -350,7 +379,7 @@ function initPond(hero) {
     }
     // top and bottom of the pond aren't hard borders: koi fade out there
     edgeRow = new Float32Array(rows);
-    const BAND = 110, top0 = opt.header ? 64 : -BAND * 0.4; // just below the fixed header
+    const BAND = opt.edgeBand, top0 = opt.header ? 64 : -BAND * 0.4; // just below the fixed header
     for (let y = 0; y < rows; y++) {
       const py = (y + 0.5) * CELL;
       const a = clamp((py - top0) / BAND, 0, 1), b = clamp((H - py) / BAND, 0, 1);
@@ -358,7 +387,7 @@ function initPond(hero) {
     }
     // "deep water" under and around the text: koi there sink out of view
     deep = new Float32Array(cols * rows);
-    const FALL = 70;
+    const FALL = opt.fall;
     for (const r of out) {
       const c0 = Math.max(0, Math.floor((r.x0 - FALL) / CELL)), c1 = Math.min(cols - 1, Math.floor((r.x1 + FALL) / CELL));
       const r0 = Math.max(0, Math.floor((r.y0 - FALL) / CELL)), r1 = Math.min(rows - 1, Math.floor((r.y1 + FALL) / CELL));
@@ -394,6 +423,7 @@ function initPond(hero) {
     g.fillRect(side - seam, 0, seam, side);
     gapPattern = kctx.createPattern(pc, "repeat");
     gapPattern.setTransform(new DOMMatrix([1 / dpr, 0, 0, 1 / dpr, 0, 0]));
+    if (!opt.seams) gapPattern = null;
   }
 
   // Random open spot with room for a koi, preferring the right side and
@@ -472,7 +502,7 @@ function initPond(hero) {
     VW = W / K;
     // Koi shrink a little on narrower windows so they don't crowd the pond, and
     // grow on wide screens.
-    S = (VW < 600 ? 0.8 : clamp(VW / 1500, 0.92, 1.35)) * K;
+    S = (VW < 600 ? 0.8 : clamp(VW / 1500, 0.92, 1.35)) * K * opt.koiScale;
     // ~42 tiles per body length at every size: 6px tiles on big screens, 5px on
     // half-screen windows, 4px on phones. Snapped to whole device pixels so the
     // seams between tiles line up.
@@ -611,7 +641,12 @@ function initPond(hero) {
     // of the koi, before arriving. (A slow-moving target let koi catch up and
     // circle it, which is what made them spin.)
     const arrive = 90 * S;
-    if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
+    const chasing = !!cursor;
+    if (chasing) {
+      // follow mode: the cursor is the destination, kept inside the pond
+      k.waypoint = { x: clamp(cursor.x, 8, W - 8), y: clamp(cursor.y, 8, H - 8) };
+      k.away = false;
+    } else if (!k.waypoint || dist(k.waypoint, head) < arrive || (!k.away && clearance(k.waypoint.x, k.waypoint.y) < roomNeed() * 0.6)) {
       // Koi drift off past any edge and come back on their own schedule: one
       // leaving doesn't pull another in. Up to a quarter are away at once, but at
       // least two always stay in view.
@@ -743,7 +778,9 @@ function initPond(hero) {
       demand = 1;
       k.glide = 0;
     } else {
-      vmax = clamp(goalD * 0.8, 40 * S, 100 * S) * k.tempo;
+      // chasing the cursor it eases right down as it gets close, so it drifts
+      // lazily around a resting cursor instead of racing in circles
+      vmax = (chasing ? clamp(goalD * 1.1, 12 * S, 230 * S) : clamp(goalD * 0.8, 40 * S, 100 * S)) * k.tempo;
       k.glide = Math.max(0, k.glide - dt);
       if (k.glide === 0 && Math.random() < dt * 0.15) k.glide = rand(1, 2.5);
       demand = k.glide > 0 ? 0.04 : clamp((vmax - k.speed) / (25 * S), 0, 1) * 0.8 + 0.2;
@@ -833,6 +870,23 @@ function initPond(hero) {
   }
 
   let eatenTotal = 0; // read by the dev test hook
+
+  // ---- follow mode ----------------------------------------------------------
+  // Only where there's a real hovering cursor; on touch screens the koi just
+  // swims around on its own, always visible.
+  const canFollow = opt.follow && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  let cursor = null; // pond-local cursor position while it's over the pond
+  if (canFollow) {
+    canvas.style.opacity = "0";
+    canvas.style.transition = "opacity 1.4s ease";
+    const at = (e) => {
+      const hr = hero.getBoundingClientRect();
+      return { x: e.clientX - hr.left, y: e.clientY - hr.top };
+    };
+    hero.addEventListener("pointerenter", (e) => { cursor = at(e); canvas.style.opacity = "1"; });
+    hero.addEventListener("pointermove", (e) => { cursor = at(e); });
+    hero.addEventListener("pointerleave", () => { cursor = null; canvas.style.opacity = "0"; });
+  }
   function update(dt) {
     time += dt;
     waterAge += dt;
@@ -859,7 +913,7 @@ function initPond(hero) {
   }
 
   // ---- rendering ----------------------------------------------------------
-  const isDark = () => document.body.classList.contains("dark-mode");
+  const isDark = () => opt.dark || document.body.classList.contains("dark-mode");
 
   // Glyphs are pre-rendered once per (character, colour) and stamped with
   // drawImage, which is far cheaper than thousands of fillText calls a frame.
@@ -1261,10 +1315,12 @@ function initPond(hero) {
     tctx.putImageData(tileImg, 0, 0);
     kctx.clearRect(0, 0, W, H);
     kctx.drawImage(tileCanvas, 0, 0, cols * CELL, rows * CELL);
-    kctx.globalCompositeOperation = "destination-out";
-    kctx.fillStyle = gapPattern;
-    kctx.fillRect(0, 0, W, H);
-    kctx.globalCompositeOperation = "source-over";
+    if (gapPattern) {
+      kctx.globalCompositeOperation = "destination-out";
+      kctx.fillStyle = gapPattern;
+      kctx.fillRect(0, 0, W, H);
+      kctx.globalCompositeOperation = "source-over";
+    }
     ctx.globalAlpha = 1;
     ctx.drawImage(koiLayer, 0, 0, W, H);
 
@@ -1412,11 +1468,13 @@ function initPond(hero) {
   document.addEventListener("visibilitychange", syncLoop);
   document.fonts?.ready.then(() => { collectObstacles(); });
   if (!reduceMotion) {
-    hero.addEventListener("click", onClick);
+    if (opt.feed) {
+      hero.addEventListener("click", onClick);
+      hero.addEventListener("mousemove", onHover);
+      hero.addEventListener("mouseleave", () => { hero.style.cursor = ""; label.classList.remove("is-on"); });
+    }
     hero.addEventListener("pointermove", onRippleMove);
     hero.addEventListener("pointerleave", () => { rx = null; });
-    hero.addEventListener("mousemove", onHover);
-    hero.addEventListener("mouseleave", () => { hero.style.cursor = ""; label.classList.remove("is-on"); });
   }
   resize();
 
