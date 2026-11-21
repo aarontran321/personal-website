@@ -852,7 +852,9 @@ section.about-hero {
 }
 
 .about-hero-title {
-  font-family: var(--font-serif);
+  /* Newsreader instead of the site's condensed Instrument Serif, so the
+     about page headings read at a normal width. */
+  font-family: 'Newsreader', Georgia, serif;
   font-weight: 400;
   font-size: 2rem;
   line-height: 1.25;
@@ -1683,7 +1685,7 @@ section.gallery-section {
 }
 
 .gallery-intro-text {
-  font-family: var(--font-serif);
+  font-family: 'Newsreader', Georgia, serif;
   font-weight: 400;
   font-size: clamp(1.5rem, 2.8vw, 2.1rem);
   color: var(--text-color);
