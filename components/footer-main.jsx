@@ -30,6 +30,8 @@ if (footer) {
     follow: true,
     dark: true, // the footer is always charcoal, whatever the site theme
     rippleScale: 0.7, // slightly smaller rings to suit the short footer band
+    rippleColor: "#ffffff",
+    cursorRippleOpacity: 0.52,
     edgeBand: 18,
     fall: 24,
     textSel: ".footer-heading, .footer-subtext",

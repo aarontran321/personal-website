@@ -150,7 +150,7 @@ export function initPond(hero) {
       if (clearance(px, py, obstacles) <= 12) continue;
       // rings further back along the path started a moment earlier
       const age = ((n - i) / n) * Math.min(0.12, elapsed / 1000);
-      ripples.push({ x: px, y: py, age, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * RS, a: 0.45 });
+      ripples.push({ x: px, y: py, age, life: 0.9 + 0.4 * fast, maxR: (16 + 18 * fast) * RS, a: opt.cursorRippleOpacity ?? 0.45 });
     }
     if (steps > MAX_RINGS || d < gap) { rx = x; ry = y; }
     else { const t = (n * gap) / d; rx += (x - rx) * t; ry += (y - ry) * t; }
@@ -1256,7 +1256,7 @@ export function initPond(hero) {
     if (opt.water) drawWater(dark);
 
     // ripple rings
-    const rippleColor = dark ? "#cbd5e1" : "#475569";
+    const rippleColor = opt.rippleColor ?? (dark ? "#cbd5e1" : "#475569");
     for (const r of ripples) {
       const p = r.age / r.life;
       const rad = r.maxR * (1 - (1 - p) ** 2);
