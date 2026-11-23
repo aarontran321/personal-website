@@ -4,3 +4,11 @@ dist/
 
 # Local editor/tooling config, not project source
 .claude/
+
+# Local-only experiments and leftovers (kept on disk, not on GitHub, not on the live site)
+curtain-demo.html
+public/curtain.js
+koi-demo.html
+blossom-demo.html
+components/pond-demo-ui.js
+public/images/project1.png
